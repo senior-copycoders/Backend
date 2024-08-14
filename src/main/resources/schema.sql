@@ -16,5 +16,5 @@ create table payment
     percent          DOUBLE PRECISION NOT NULL CHECK ( percent > 0 ),
     repayment_credit DOUBLE PRECISION NOT NULL CHECK ( repayment_credit > 0 ),
     remaining_credit DOUBLE PRECISION NOT NULL CHECK ( repayment_credit > 0 ),
-    credit_id BIGINT references credit(id)
-);
+    credit_id        BIGINT references credit (id)
+)

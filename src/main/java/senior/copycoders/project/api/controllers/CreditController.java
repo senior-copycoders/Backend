@@ -1,2 +1,11 @@
-package senior.copycoders.project.api.controllers;public class CreditController {
+package senior.copycoders.project.api.controllers;
+
+
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class CreditController {
+
+
+
 }
