@@ -3,6 +3,8 @@ package senior.copycoders.project.store.entities;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,21 +23,21 @@ public class PaymentEntity {
     Integer paymentNumber;
 
     @Column(name = "payment_date")
-    LocalDateTime paymentDate;
+    LocalDate paymentDate;
 
 
     @Column(name = "payment_amount")
-    Double paymentAmount;
+    BigDecimal paymentAmount;
 
     @Column(name = "percent")
-    Double percent;
+    BigDecimal percent;
 
     @Column(name = "repayment_credit")
-    Double repaymentCredit;
+    BigDecimal repaymentCredit;
 
 
     @Column(name = "remaining_credit")
-    Double remainingCredit;
+    BigDecimal remainingCredit;
 
     @ManyToOne
     CreditEntity credit;

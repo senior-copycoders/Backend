@@ -4,6 +4,7 @@ package senior.copycoders.project.store.entities;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,18 +21,21 @@ public class CreditEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
+    @Column(name = "initial_payment")
+    BigDecimal initialPayment;
+
     @Column(name = "credit_amount")
-    Double creditAmount;
+    BigDecimal creditAmount;
 
     @Column(name = "percent_rate")
-    Double percentRate;
+    BigDecimal percentRate;
 
     @Column(name = "credit_period")
     Integer creditPeriod;
 
 
     @Column(name = "payment")
-    Double payment;
+    BigDecimal payment;
 
 
     @Builder.Default

@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 
@@ -15,31 +16,28 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PaymentDto {
     @NonNull
-    Long id;
-
-    @NonNull
     @JsonProperty("payment_number")
     Integer paymentNumber;
 
 
     @NonNull
     @JsonProperty("payment_date")
-    LocalDateTime paymentDate;
+    LocalDate paymentDate;
 
     @NonNull
     @JsonProperty("payment_amount")
-    Double paymentAmount;
+    BigDecimal paymentAmount;
 
 
     @NonNull
-    Double percent;
+    BigDecimal percent;
 
     @NonNull
     @JsonProperty("repayment_credit")
-    Double repaymentCredit;
+    BigDecimal repaymentCredit;
 
 
     @NonNull
     @JsonProperty("remaining_credit")
-    Double remainingCredit;
+    BigDecimal remainingCredit;
 }

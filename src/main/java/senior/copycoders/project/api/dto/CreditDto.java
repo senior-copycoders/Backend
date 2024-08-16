@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,18 +16,22 @@ public class CreditDto {
     Long id;
 
     @NonNull
+    @JsonProperty("initial_payment")
+    BigDecimal initialPayment;
+
+    @NonNull
     @JsonProperty("credit_amount")
-    Double creditAmount;
+    BigDecimal creditAmount;
 
     @NonNull
     @JsonProperty("percent_rate")
-    Double percentRate;
+    BigDecimal percentRate;
 
     @NonNull
     @JsonProperty("credit_period")
     Integer creditPeriod;
 
     @NonNull
-    Double payment;
+    BigDecimal payment;
 }
 
