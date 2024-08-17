@@ -17,7 +17,7 @@ import java.util.List;
 public class PaymentWithCreditDto {
 
     @NonNull
-    @JsonProperty("credit_id")
+    @JsonProperty("credit")
     @Schema(description = "информация про кредит")
     CreditDto credit;
 
