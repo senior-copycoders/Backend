@@ -9,14 +9,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Schema(description = "сущность платёж")
-public class PaymentDto {
+public class PaymentDto implements Comparable<PaymentDto> {
     @NonNull
     @JsonProperty("payment_number")
     @Schema(description = "номер платежа")
@@ -48,4 +47,9 @@ public class PaymentDto {
     @JsonProperty("remaining_credit")
     @Schema(description = "остаток долга")
     BigDecimal remainingCredit;
+
+    @Override
+    public int compareTo(PaymentDto o) {
+        return Integer.compare(paymentNumber, o.getPaymentNumber());
+    }
 }

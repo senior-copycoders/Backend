@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
+import senior.copycoders.project.api.dto.CreditDto;
 import senior.copycoders.project.api.dto.PaymentDto;
 import senior.copycoders.project.api.dto.PaymentWithIdCreditDto;
 import senior.copycoders.project.api.services.CreditService;
@@ -29,25 +30,33 @@ public class CreditController {
     )
     public PaymentWithIdCreditDto createCredit(@RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (положительное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod) {
 
-
         // Получаем из creditService объекта нужно класса
         return creditService.calculateAndSave(BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod);
     }
+
+
 
     @GetMapping("/api/credit/{credit_id}")
     @Operation(
             summary = "Получение списка платежей по кредиту id, которого передали"
     )
-    public Object getCreditById() {
-        return null;
+    public List<PaymentDto> getCreditById(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId) {
+
+        // Получаем из creditService список всех платежей
+        return creditService.getAllPaymentsByCreditId(creditId);
+
     }
+
+
 
     @GetMapping("/api/credit")
     @Operation(
             summary = "Получение списка всех кредитов"
     )
-    public Object getAllCredit() {
-        return null;
+    public List<CreditDto> getAllCredit() {
+
+        // получаем список всех кредитов в БД
+        return creditService.getAllCredit();
     }
 
 

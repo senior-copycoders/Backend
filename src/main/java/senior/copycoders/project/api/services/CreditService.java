@@ -6,8 +6,10 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
+import senior.copycoders.project.api.dto.CreditDto;
 import senior.copycoders.project.api.dto.PaymentDto;
 import senior.copycoders.project.api.dto.PaymentWithIdCreditDto;
+import senior.copycoders.project.api.factories.CreditDtoFactory;
 import senior.copycoders.project.api.factories.PaymentDtoFactory;
 import senior.copycoders.project.api.factories.PaymentDtoWithIdCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
@@ -19,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +34,7 @@ public class CreditService {
     PaymentRepository paymentRepository;
     PaymentDtoFactory paymentDtoFactory;
     PaymentDtoWithIdCreditDtoFactory paymentDtoWithIdCreditDtoFactory;
+    CreditDtoFactory creditDtoFactory;
 
     /**
      * @param initialPayment первоначальный взнос
@@ -58,6 +62,10 @@ public class CreditService {
      * @param creditPeriod   срок кредитования (в месяцах, положительное целое число)
      */
     public PaymentWithIdCreditDto calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+
+        // TODO сделать валидацию данных
+
+
         // Нам важна точность вычислений, поэтому для вычислений будем использовать BigDecimal
 
         // для начала нужно подсчитать остаток кредита после начального взноса
@@ -174,4 +182,44 @@ public class CreditService {
     }
 
 
+    /**
+     * Получение списка всех платежей по id кредита
+     *
+     * @param creditId id кредита
+     * @return список платежей
+     */
+    public List<PaymentDto> getAllPaymentsByCreditId(Long creditId) {
+
+        // TODO сделать валидацию случая, когда по id нет кредита
+
+        // получаем кредит по creditId
+        CreditEntity credit = creditRepository.findById(creditId).get();
+
+        // формируем список платежей
+        List<PaymentDto> payments = new ArrayList<>(credit.getPaymentList().stream()
+                .map(paymentDtoFactory::makePaymentDto)
+                .toList());
+
+
+        // сортируем список платежей, чтобы они шли по порядку
+        Collections.sort(payments);
+
+        return payments;
+
+    }
+
+
+    /**
+     * Возвращает список всех платежей
+     *
+     * @return
+     */
+    public List<CreditDto> getAllCredit() {
+
+        List<CreditEntity> creditEntities = creditRepository.findAll();
+
+        return creditEntities.stream()
+                .map(creditDtoFactory::makeCreditDto)
+                .toList();
+    }
 }
