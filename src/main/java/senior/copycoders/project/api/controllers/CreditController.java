@@ -76,7 +76,7 @@ public class CreditController {
     )
     public PaymentWithCreditDto changeCredit(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId, @RequestParam(name = "initial_payment", required = false) @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой, необязательное поле)") Optional<Double> optionalInitialPayment, @RequestParam(name = "credit_amount", required = false) @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой, необязательное поле)") Optional<Double> optionalCreditAmount, @RequestParam(name = "percent_rate", required = false) @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой, необязательное поле)") Optional<Double> optionalPercentRate, @RequestParam(name = "credit_period", required = false) @Parameter(description = "срок кредитования в месяцах (положительное целое число, необязательное поле)") Optional<Integer> optionalCreditPeriod) {
 
-
+        
         return creditService.changeCreditAndPayments(creditId, optionalInitialPayment.map(BigDecimal::valueOf), optionalCreditAmount.map(BigDecimal::valueOf), optionalPercentRate.map(BigDecimal::valueOf), optionalCreditPeriod);
 
     }

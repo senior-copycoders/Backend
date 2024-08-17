@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
+import senior.copycoders.project.api.controllers.helpers.ControllerHelper;
 import senior.copycoders.project.api.dto.CreditDto;
 import senior.copycoders.project.api.dto.PaymentDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
@@ -37,6 +38,7 @@ public class CreditService {
     PaymentDtoFactory paymentDtoFactory;
     PaymentWithCreditDtoFactory paymentDtoWithCreditDtoFactory;
     CreditDtoFactory creditDtoFactory;
+    ControllerHelper controllerHelper;
 
 
     /**
@@ -66,8 +68,8 @@ public class CreditService {
      */
     public PaymentWithCreditDto calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
 
-        // TODO сделать валидацию данных
-
+        // валидация данных для платежа
+        controllerHelper.validateDataOfCredit(initialPayment, creditAmount, percentRate, creditPeriod);
 
         // Нам важна точность вычислений, поэтому для вычислений будем использовать BigDecimal
 
@@ -193,10 +195,8 @@ public class CreditService {
      */
     public PaymentWithCreditDto getAllPaymentsByCreditId(Long creditId) {
 
-        // TODO сделать валидацию случая, когда по id нет кредита
-
         // получаем кредит по creditId
-        CreditEntity credit = creditRepository.findById(creditId).get();
+        CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
 
         // формируем список платежей
         List<PaymentDto> payments = new ArrayList<>(credit.getPaymentList().stream()
@@ -237,7 +237,7 @@ public class CreditService {
         // TODO сделать валидацию
 
         // получаем кредит
-        CreditEntity credit = creditRepository.findById(creditId).get();
+        CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
 
         // получаем список всех платежей
         List<PaymentEntity> payments = credit.getPaymentList();
@@ -264,7 +264,7 @@ public class CreditService {
         // TODO сделать валидацию данных
 
         // сначала получим кредит по id
-        CreditEntity credit = creditRepository.findById(creditId).get();
+        CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
 
         List<PaymentEntity> paymentsOld = credit.getPaymentList();
 
@@ -281,13 +281,15 @@ public class CreditService {
             return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), paymentsOld.stream().map(paymentDtoFactory::makePaymentDto).toList());
         }
 
-        // TODO валидация данных о кредите
 
         // теперь нужно поменять информацию о кредите, и пересчитать платежи
         BigDecimal initialPayment = optionalInitialPayment.orElse(credit.getInitialPayment());
         BigDecimal creditAmount = optionalCreditAmount.orElse(credit.getCreditAmount());
         BigDecimal percentRate = optionalPercentRate.orElse(credit.getPercentRate());
         Integer creditPeriod = optionalCreditPeriod.orElse(credit.getCreditPeriod());
+
+        // валидация данных о кредите
+        controllerHelper.validateDataOfCredit(initialPayment, creditAmount, percentRate, creditPeriod);
 
         // расчитаем остаток по кредиту
         BigDecimal ostatokOfCredit = creditAmount.subtract(initialPayment);
