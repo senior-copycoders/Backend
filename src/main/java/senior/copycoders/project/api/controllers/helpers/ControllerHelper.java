@@ -46,7 +46,7 @@ public class ControllerHelper {
             throw new BadRequestException("Invalid value of credit_period");
         }
 
-        if (initialPayment.compareTo(creditAmount) > 0) {
+        if (initialPayment.compareTo(creditAmount) >= 0) {
             throw new BadRequestException("Credit_amount must be more than the initial_payment");
         }
     }
