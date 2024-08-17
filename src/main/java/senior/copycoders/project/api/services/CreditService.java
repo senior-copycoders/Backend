@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import senior.copycoders.project.api.dto.PaymentDto;
+import senior.copycoders.project.api.dto.PaymentWithIdCreditDto;
 import senior.copycoders.project.api.factories.PaymentDtoFactory;
+import senior.copycoders.project.api.factories.PaymentDtoWithIdCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
 import senior.copycoders.project.store.repositories.CreditRepository;
@@ -28,6 +30,7 @@ public class CreditService {
     CreditRepository creditRepository;
     PaymentRepository paymentRepository;
     PaymentDtoFactory paymentDtoFactory;
+    PaymentDtoWithIdCreditDtoFactory paymentDtoWithIdCreditDtoFactory;
 
     /**
      * @param initialPayment первоначальный взнос
@@ -54,11 +57,8 @@ public class CreditService {
      * @param percentRate    процентная ставка
      * @param creditPeriod   срок кредитования (в месяцах, положительное целое число)
      */
-    public Object[] calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+    public PaymentWithIdCreditDto calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
         // Нам важна точность вычислений, поэтому для вычислений будем использовать BigDecimal
-
-        Object[] data = new Object[2];
-
 
         // для начала нужно подсчитать остаток кредита после начального взноса
         // остаток кредита = creditAmount - initialPayment
@@ -69,8 +69,6 @@ public class CreditService {
 
         // Сохраним данный кредит в БД
         CreditEntity saveCredit = saveCredit(initialPayment, creditAmount, percentRate, payment, creditPeriod);
-        data[0] = saveCredit.getId();
-
 
         // Теперь нужно сформировать список всех платежей
         List<PaymentEntity> payments = createListOfPayments(ostatokOfCredit, payment, percentRate, creditPeriod, saveCredit);
@@ -83,11 +81,21 @@ public class CreditService {
                 .map(paymentDtoFactory::makePaymentDto)
                 .toList();
 
-        data[1] = paymentDtos;
-        return data;
+
+        return paymentDtoWithIdCreditDtoFactory.makePaymentWithIdCreditDto(saveCredit.getId(), paymentDtos);
     }
 
 
+    /**
+     * Метод для вычисления списка платежей по кредиту по месяцам
+     *
+     * @param creditAmount сумма кредита
+     * @param payment      платёж
+     * @param percentRate  годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod срок кредитования в месяцах
+     * @param saveCredit   кредит, к которому привязаны платежи
+     * @return список платежей
+     */
     private List<PaymentEntity> createListOfPayments(BigDecimal creditAmount, BigDecimal payment, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
         // Общая сумма денег, которую мы заплатим по итогу, равняется payment * creditPeriod
 
@@ -129,6 +137,15 @@ public class CreditService {
         return payments;
     }
 
+
+    /**
+     * Метод для вычисления платежа
+     *
+     * @param creditAmount сумма кредита
+     * @param percentRate  годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod срок кредитования в месяцах
+     * @return платёж
+     */
     private BigDecimal calculatePayment(BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
         // Ежемесячный платеж = (Сумма кредита * Процентная ставка / 12) / (1 - (1 + Процентная ставка / 12)^(-Срок кредита в месяцах))
 
