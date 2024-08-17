@@ -8,10 +8,10 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import senior.copycoders.project.api.dto.CreditDto;
 import senior.copycoders.project.api.dto.PaymentDto;
-import senior.copycoders.project.api.dto.PaymentWithIdCreditDto;
+import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.factories.CreditDtoFactory;
 import senior.copycoders.project.api.factories.PaymentDtoFactory;
-import senior.copycoders.project.api.factories.PaymentDtoWithIdCreditDtoFactory;
+import senior.copycoders.project.api.factories.PaymentWithCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
 import senior.copycoders.project.store.repositories.CreditRepository;
@@ -23,7 +23,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -33,8 +35,9 @@ public class CreditService {
     CreditRepository creditRepository;
     PaymentRepository paymentRepository;
     PaymentDtoFactory paymentDtoFactory;
-    PaymentDtoWithIdCreditDtoFactory paymentDtoWithIdCreditDtoFactory;
+    PaymentWithCreditDtoFactory paymentDtoWithCreditDtoFactory;
     CreditDtoFactory creditDtoFactory;
+
 
     /**
      * @param initialPayment первоначальный взнос
@@ -61,7 +64,7 @@ public class CreditService {
      * @param percentRate    процентная ставка
      * @param creditPeriod   срок кредитования (в месяцах, положительное целое число)
      */
-    public PaymentWithIdCreditDto calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+    public PaymentWithCreditDto calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
 
         // TODO сделать валидацию данных
 
@@ -90,7 +93,7 @@ public class CreditService {
                 .toList();
 
 
-        return paymentDtoWithIdCreditDtoFactory.makePaymentWithIdCreditDto(saveCredit.getId(), paymentDtos);
+        return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(saveCredit), paymentDtos);
     }
 
 
@@ -188,7 +191,7 @@ public class CreditService {
      * @param creditId id кредита
      * @return список платежей
      */
-    public List<PaymentDto> getAllPaymentsByCreditId(Long creditId) {
+    public PaymentWithCreditDto getAllPaymentsByCreditId(Long creditId) {
 
         // TODO сделать валидацию случая, когда по id нет кредита
 
@@ -204,7 +207,7 @@ public class CreditService {
         // сортируем список платежей, чтобы они шли по порядку
         Collections.sort(payments);
 
-        return payments;
+        return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), payments);
 
     }
 
@@ -221,5 +224,140 @@ public class CreditService {
         return creditEntities.stream()
                 .map(creditDtoFactory::makeCreditDto)
                 .toList();
+    }
+
+
+    /**
+     * Удаляет кредит по id вместе с его платежа
+     *
+     * @param creditId id кредита
+     */
+    public void deleteCreditAndPayments(Long creditId) {
+
+        // TODO сделать валидацию
+
+        // получаем кредит
+        CreditEntity credit = creditRepository.findById(creditId).get();
+
+        // получаем список всех платежей
+        List<PaymentEntity> payments = credit.getPaymentList();
+
+        // удаляем сначала все платежи (так как платежи привязаны к кредиту)
+        paymentRepository.deleteAll(payments);
+
+        // удаляем кредит
+        creditRepository.delete(credit);
+    }
+
+
+    /**
+     * Метод,который меняет данные кредита и делает перерасчёт платежей
+     *
+     * @param creditId               id кредита
+     * @param optionalInitialPayment начальный платёж
+     * @param optionalCreditAmount   сумма кредита
+     * @param optionalPercentRate    годовая процентная ставка
+     * @param optionalCreditPeriod   срок кредитования в месяцах
+     */
+    public PaymentWithCreditDto changeCreditAndPayments(Long creditId, Optional<BigDecimal> optionalInitialPayment, Optional<BigDecimal> optionalCreditAmount, Optional<BigDecimal> optionalPercentRate, Optional<Integer> optionalCreditPeriod) {
+
+        // TODO сделать валидацию данных
+
+        // сначала получим кредит по id
+        CreditEntity credit = creditRepository.findById(creditId).get();
+
+        List<PaymentEntity> paymentsOld = credit.getPaymentList();
+
+        // сначала проверим, вдруг все параметры пустые -> вернём уже имеющийся список платежей и кредит
+        if (optionalInitialPayment.isEmpty() && optionalCreditAmount.isEmpty() && optionalPercentRate.isEmpty() && optionalCreditPeriod.isEmpty()) {
+            return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), paymentsOld.stream().map(paymentDtoFactory::makePaymentDto).toList());
+        }
+
+        // если все параметры равны уже имеющимся
+        boolean flag = equalityCheck(credit, optionalInitialPayment, optionalCreditAmount, optionalPercentRate, optionalCreditPeriod);
+
+        if (flag) {
+            // значит параметры были поменяны на такие же, вернём просто список платежей и кредит, который у нас есть
+            return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), paymentsOld.stream().map(paymentDtoFactory::makePaymentDto).toList());
+        }
+
+        // TODO валидация данных о кредите
+
+        // теперь нужно поменять информацию о кредите, и пересчитать платежи
+        BigDecimal initialPayment = optionalInitialPayment.orElse(credit.getInitialPayment());
+        BigDecimal creditAmount = optionalCreditAmount.orElse(credit.getCreditAmount());
+        BigDecimal percentRate = optionalPercentRate.orElse(credit.getPercentRate());
+        Integer creditPeriod = optionalCreditPeriod.orElse(credit.getCreditPeriod());
+
+        // расчитаем остаток по кредиту
+        BigDecimal ostatokOfCredit = creditAmount.subtract(initialPayment);
+
+        // рассчитаем платёж
+        BigDecimal payment = calculatePayment(ostatokOfCredit, percentRate, creditPeriod);
+
+        // рассчитаем платежи
+        List<PaymentEntity> newPayments = createListOfPayments(ostatokOfCredit, payment, percentRate, creditPeriod, credit);
+
+        // удалим из БД старые платежи
+        paymentRepository.deleteAll(paymentsOld);
+
+        // теперь поменяем информацию о кредите в БД
+        credit.setCreditAmount(creditAmount);
+        credit.setPayment(payment);
+        credit.setInitialPayment(initialPayment);
+        credit.setPercentRate(percentRate);
+        credit.setCreditPeriod(creditPeriod);
+        credit.setPaymentList(newPayments);
+
+        // теперь сохраним новые платежи
+        paymentRepository.saveAll(newPayments);
+
+
+        // сохраняем измнения сущности
+        credit = creditRepository.save(credit);
+
+        return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), newPayments.stream().map(paymentDtoFactory::makePaymentDto).toList());
+    }
+
+
+    /**
+     * Проверяет, что данные credit совпадают со всеми переданными
+     *
+     * @param credit                 сущность кредит
+     * @param optionalInitialPayment начальный платёж
+     * @param optionalCreditAmount   сумма кредита
+     * @param optionalPercentRate    процентная ставка
+     * @param optionalCreditPeriod   срок кредитования в месяцах
+     */
+    private boolean equalityCheck(CreditEntity credit, Optional<BigDecimal> optionalInitialPayment, Optional<BigDecimal> optionalCreditAmount, Optional<BigDecimal> optionalPercentRate, Optional<Integer> optionalCreditPeriod) {
+
+        if (optionalInitialPayment.isPresent()) {
+            BigDecimal initialPayment = optionalInitialPayment.get();
+            if (!credit.getInitialPayment().equals(initialPayment)) {
+                return false;
+            }
+        }
+
+        if (optionalCreditAmount.isPresent()) {
+            BigDecimal creditAmount = optionalCreditAmount.get();
+            if (!credit.getCreditAmount().equals(creditAmount)) {
+                return false;
+            }
+        }
+
+        if (optionalPercentRate.isPresent()) {
+            BigDecimal percentRate = optionalPercentRate.get();
+            if (!credit.getPercentRate().equals(percentRate)) {
+                return false;
+            }
+        }
+
+        if (optionalCreditPeriod.isPresent()) {
+            Integer creditPeriod = optionalCreditPeriod.get();
+            return credit.getCreditPeriod().equals(creditPeriod);
+        }
+
+        return true;
+
     }
 }

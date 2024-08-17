@@ -14,12 +14,12 @@ import java.util.List;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Schema(description = "список платежей с id кредита, к которому они привязаны")
-public class PaymentWithIdCreditDto {
+public class PaymentWithCreditDto {
 
     @NonNull
     @JsonProperty("credit_id")
-    @Schema(description = "id кредита")
-    Long creditId;
+    @Schema(description = "информация про кредит")
+    CreditDto credit;
 
 
     @NonNull
