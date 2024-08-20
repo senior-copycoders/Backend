@@ -2,6 +2,7 @@ HELP.md
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+C:/Users/stepa/IdeaProjects/project/src/main/resources/application-dev.properties
 
 ### STS ###
 .apt_generated
