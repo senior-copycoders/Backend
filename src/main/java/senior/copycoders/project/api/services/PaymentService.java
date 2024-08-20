@@ -8,7 +8,10 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import senior.copycoders.project.api.controllers.helpers.ControllerHelper;
 import senior.copycoders.project.api.dto.PaymentDto;
+import senior.copycoders.project.api.dto.PaymentWithCreditDto;
+import senior.copycoders.project.api.factories.CreditDtoFactory;
 import senior.copycoders.project.api.factories.PaymentDtoFactory;
+import senior.copycoders.project.api.factories.PaymentWithCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
 import senior.copycoders.project.store.repositories.PaymentRepository;
@@ -17,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -27,15 +31,18 @@ public class PaymentService {
     ControllerHelper controllerHelper;
     PaymentRepository paymentRepository;
     PaymentDtoFactory paymentDtoFactory;
+    CreditDtoFactory creditDtoFactory;
+    PaymentWithCreditDtoFactory paymentWithCreditDtoFactory;
 
 
     /**
      * Метод, который рассчитывает и сохраняет все платежи по данным кредита
+     *
      * @param initialPayment первоначальный взнос
      * @param creditAmount   сумма кредита
      * @param percentRate    процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
      * @param creditPeriod   срок кредитования в месяцах
-     * @param saveCredit  сущность кредит, к которому привязаны платежи
+     * @param saveCredit     сущность кредит, к которому привязаны платежи
      */
     public List<PaymentDto> calculateAndSavePayments(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
         // валидация данных для платежа
@@ -60,6 +67,28 @@ public class PaymentService {
         // Теперь нужно сформировать список paymentDto
         return createListOfPaymentDto(payments);
 
+
+    }
+
+
+    /**
+     * Получение списка всех платежей по id кредита
+     *
+     * @param creditId id кредита
+     * @return список платежей
+     */
+    public PaymentWithCreditDto getAllPaymentsByCreditId(Long creditId) {
+
+        // получаем кредит по creditId
+        CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
+
+        // формируем список платежей
+        List<PaymentDto> payments = createListOfPaymentDto(credit);
+
+        // сортируем список платежей, чтобы они шли по порядку
+        Collections.sort(payments);
+
+        return paymentWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), payments);
 
     }
 

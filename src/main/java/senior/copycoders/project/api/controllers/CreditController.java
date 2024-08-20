@@ -36,18 +36,6 @@ public class CreditController {
     }
 
 
-    @GetMapping("/api/credit/{credit_id}")
-    @Operation(
-            summary = "Получение списка платежей (а также информация про кредит) по id кредита, которого передали"
-    )
-    public PaymentWithCreditDto getCreditById(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId) {
-
-        // Получаем из creditService список всех платежей
-        return creditService.getAllPaymentsByCreditId(creditId);
-
-    }
-
-
     @GetMapping("/api/credit")
     @Operation(
             summary = "Получение списка всех кредитов"
@@ -68,7 +56,6 @@ public class CreditController {
 
         return AckDto.makeDefault(true);
     }
-
 
 
 //    @PatchMapping("/api/credit/{credit_id}")

@@ -80,30 +80,9 @@ public class CreditService {
     }
 
 
-    /**
-     * Получение списка всех платежей по id кредита
-     *
-     * @param creditId id кредита
-     * @return список платежей
-     */
-    public PaymentWithCreditDto getAllPaymentsByCreditId(Long creditId) {
-
-        // получаем кредит по creditId
-        CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
-
-        // формируем список платежей
-        List<PaymentDto> payments = paymentService.createListOfPaymentDto(credit);
-
-        // сортируем список платежей, чтобы они шли по порядку
-        Collections.sort(payments);
-
-        return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(credit), payments);
-
-    }
-
 
     /**
-     * Возвращает список всех платежей
+     * Возвращает список всех кредит
      */
     public List<CreditDto> getAllCredit() {
 
