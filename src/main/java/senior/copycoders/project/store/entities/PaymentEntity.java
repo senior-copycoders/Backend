@@ -2,6 +2,7 @@ package senior.copycoders.project.store.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import senior.copycoders.project.store.enums.StatusEnum;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,7 +15,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PaymentEntity {
+public class PaymentEntity implements Comparable<PaymentEntity> {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
@@ -35,11 +37,20 @@ public class PaymentEntity {
     @Column(name = "repayment_credit")
     BigDecimal repaymentCredit;
 
-
-    @Column(name = "remaining_credit")
-    BigDecimal remainingCredit;
+    @Column(name = "credit_after-payment")
+    BigDecimal afterPayment;
 
     @ManyToOne
     CreditEntity credit;
 
+    @Column(name = "status")
+    StatusEnum status;
+
+    @Column(name = "credit_before-payment")
+    BigDecimal beforePayment;
+
+    @Override
+    public int compareTo(PaymentEntity o) {
+        return Integer.compare(paymentNumber, o.getPaymentNumber());
+    }
 }

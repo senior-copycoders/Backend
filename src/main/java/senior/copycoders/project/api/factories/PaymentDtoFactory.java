@@ -15,7 +15,9 @@ public class PaymentDtoFactory {
                 .paymentAmount(paymentEntity.getPaymentAmount())
                 .percent(paymentEntity.getPercent())
                 .repaymentCredit(paymentEntity.getRepaymentCredit())
-                .remainingCredit(paymentEntity.getRemainingCredit())
+                .afterPayment(paymentEntity.getAfterPayment())
+                .beforePayment(paymentEntity.getBeforePayment())
+                .status(paymentEntity.getStatus())
                 .build();
     }
 }

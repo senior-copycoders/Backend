@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import senior.copycoders.project.store.enums.StatusEnum;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -44,9 +45,18 @@ public class PaymentDto implements Comparable<PaymentDto> {
 
 
     @NonNull
-    @JsonProperty("remaining_credit")
-    @Schema(description = "остаток долга")
-    BigDecimal remainingCredit;
+    @JsonProperty("after_payment")
+    @Schema(description = "долг после платежа")
+    BigDecimal afterPayment;
+
+    @NonNull
+    @Schema(description = "статус платежа, PAID - платеж по кредиту был успешно произведен, PENDING - платеж по кредиту ожидается")
+    StatusEnum status;
+
+    @NonNull
+    @Schema(description = "долг до платежа")
+    @JsonProperty("before_payment")
+    BigDecimal beforePayment;
 
     @Override
     public int compareTo(PaymentDto o) {

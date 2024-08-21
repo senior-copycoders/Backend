@@ -1,2 +1,5 @@
-package senior.copycoders.project.store.enums;public class StatusEnum {
+package senior.copycoders.project.store.enums;
+
+public enum StatusEnum {
+    PAID, PENDING
 }

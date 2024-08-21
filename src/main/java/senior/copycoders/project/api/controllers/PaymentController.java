@@ -9,9 +9,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import senior.copycoders.project.api.dto.AckDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.services.PaymentService;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @RestController
 @Tag(name = "Платежи", description = "Взаимодействие с платежами")
@@ -30,6 +35,16 @@ public class PaymentController {
         return paymentService.getAllPaymentsByCreditId(creditId);
 
     }
-    
+
+
+    @GetMapping("/api/credit/{credit_id}/makePayment")
+    @Operation(
+            summary = "Начисления платежа по кредиту"
+    )
+    public AckDto makePayment(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId, @RequestParam(name = "date") @Parameter(description = "дата платежа (формат yyyy-MM-dd)") String date, @RequestParam(name = "payment") @Parameter(description = "сумма платежа") Double currentPayment) {
+
+        return paymentService.makePayment(creditId, date, currentPayment);
+    }
+
 
 }

@@ -39,7 +39,7 @@ public class CreditEntity {
 
 
     @Builder.Default
-    @OneToMany
+    @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "credit_id" , referencedColumnName = "id")
     List<PaymentEntity> paymentList = new ArrayList<>();
 }

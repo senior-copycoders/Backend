@@ -7,18 +7,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import senior.copycoders.project.api.controllers.helpers.ControllerHelper;
+import senior.copycoders.project.api.dto.AckDto;
 import senior.copycoders.project.api.dto.PaymentDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
+import senior.copycoders.project.api.exceptions.BadRequestException;
 import senior.copycoders.project.api.factories.CreditDtoFactory;
 import senior.copycoders.project.api.factories.PaymentDtoFactory;
 import senior.copycoders.project.api.factories.PaymentWithCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
+import senior.copycoders.project.store.enums.StatusEnum;
+import senior.copycoders.project.store.repositories.CreditRepository;
 import senior.copycoders.project.store.repositories.PaymentRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +39,7 @@ public class PaymentService {
     PaymentDtoFactory paymentDtoFactory;
     CreditDtoFactory creditDtoFactory;
     PaymentWithCreditDtoFactory paymentWithCreditDtoFactory;
+    CreditRepository creditRepository;
 
 
     /**
@@ -175,8 +182,14 @@ public class PaymentService {
             // Посчитаем какая часть платежа уйдёт на погашение основного долга
             BigDecimal repaymentCredit = payment.subtract(currentPercent);
 
+            // сумма долга до платежа
+            BigDecimal beforePayment = new BigDecimal(totalSum.toString());
+
+            // сумма долга после платежи
             totalSum = totalSum.subtract(payment);
 
+
+            // акутальная сумма кредита после платежа
             creditAmount = (creditAmount.add(currentPercent)).subtract(payment);
 
             payments.add(PaymentEntity.builder()
@@ -185,8 +198,10 @@ public class PaymentService {
                     .paymentAmount(payment)
                     .percent(currentPercent)
                     .repaymentCredit(repaymentCredit)
-                    .remainingCredit(totalSum)
+                    .afterPayment(totalSum)
                     .credit(saveCredit)
+                    .status(StatusEnum.PENDING)
+                    .beforePayment(beforePayment)
                     .build());
 
             date = date.plusMonths(1);
@@ -196,4 +211,198 @@ public class PaymentService {
         return payments;
     }
 
+
+    /**
+     * Сделать платёж по кредиту
+     *
+     * @param creditId       id кредита
+     * @param date           дата платежа
+     * @param currentPayment сумма платежа
+     */
+    public AckDto makePayment(Long creditId, String date, Double currentPayment) {
+
+        CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
+
+        LocalDate dateOfPayment;
+
+        try {
+            // Определяем формат даты
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            // Пытаемся преобразовать строку в LocalDate
+            dateOfPayment = LocalDate.parse(date, formatter);
+        } catch (DateTimeParseException e) {
+            throw new BadRequestException("Incorrect date format");
+        }
+
+        // получим список платежей
+        List<PaymentEntity> payments = credit.getPaymentList();
+
+        // отсортируем их по порядку
+        Collections.sort(payments);
+
+        // теперь нам нужно найти платёж, который соответствует dateOfPayment
+        boolean flag = true;
+        for (int i = 0; i < payments.size(); i++) {
+            if (payments.get(i).getPaymentDate().equals(dateOfPayment)) {
+
+                PaymentEntity payment = payments.get(i); // текущая сущность платежа
+
+                // для начала посмотрим, внесён ли уже платёж
+                if (StatusEnum.PAID == payment.getStatus()) {
+                    // платёж на данную дату уже внесён, генерируем исключение
+                    throw new BadRequestException("The payment has already been made on this date.");
+                }
+
+                // теперь посмотрим на порядок внесения платежей, вдруг ещё не был внесён платёж по предыдущему платежу
+                if (i != 0) {
+                    PaymentEntity previous = payments.get(i - 1);
+                    if (previous.getStatus() == StatusEnum.PENDING) {
+                        throw new BadRequestException("First, you need to make payments for previous years.");
+                    }
+                }
+
+
+                flag = false;
+
+                // платёж по плану
+                BigDecimal paymentForPlan = payment.getPaymentAmount();
+
+                // платёж от пользователя
+                BigDecimal paymentOfUser = BigDecimal.valueOf(currentPayment);
+
+                // если платёж от пользователя меньше чем платёж по плану - генерируем исключение
+                if (paymentOfUser.compareTo(paymentForPlan) < 0) {
+                    throw new BadRequestException("The payment has not been accepted, the payment must be at least the scheduled payment.");
+                }
+
+
+                // самая интересная ситуация возникает когда платёж больше чем по плану - тогда нужно делать перерасчёт платежей
+                if (paymentOfUser.compareTo(paymentForPlan) > 0) {
+
+
+                    // проверяем случай когда платёж превысил остаток долга, генерируем исключение
+                    if (paymentOfUser.compareTo(payment.getBeforePayment()) > 0) {
+                        // платёж превысил остаток долга
+                        throw new BadRequestException("The payment must not exceed the total amount of the debt");
+                    }
+
+                    // если мы платёжом покрыли сразу весь долг, то нужно закрыть платежи
+                    if (paymentOfUser.compareTo(payment.getBeforePayment()) == 0) {
+                        // платёж равен остатку долга, то есть пользователь погасил кредит на данном этапе
+                        // нужно удалить следующие за ним платежи, так как кредит мы уже выплатили
+
+                        payment.setStatus(StatusEnum.PAID); // ставим статус оплачено
+                        payment.setAfterPayment(BigDecimal.ZERO); // сумма после платежа равняется нулю, так как мы весь платёж погасили
+                        payment.setPaymentAmount(paymentOfUser); // меняем сумма платежа
+
+                        // теперь нужно посчитать сумма процентов
+                        BigDecimal sumOfPercent = payment.getPercent();
+
+                        // и сразу же будем удалять лишние платежи
+                        for (int j = payments.size() - 1; j > i; j--) {
+                            sumOfPercent = sumOfPercent.add(payments.get(j).getPercent());
+                            payments.remove(j);
+                        }
+
+                        payment.setPercent(sumOfPercent); // меняем сумма процентов
+                        payment.setRepaymentCredit(paymentOfUser.subtract(sumOfPercent)); // вычисляем какая сумма пошла на погашение долга
+
+                        creditRepository.save(credit); // сохраняем кредит вместе с листом payment
+
+                        return AckDto.makeDefault(true);
+
+                    } else {
+                        // здесь нужно пересчитать все платежи, начиная с i+1 платежа
+
+                        // но сначала поменяем сущность - текущий платёж
+                        BigDecimal diff = paymentOfUser.subtract(paymentForPlan);
+
+                        payment.setStatus(StatusEnum.PAID); // статус оплачено
+                        payment.setRepaymentCredit(payment.getRepaymentCredit().add(diff)); // мы же внесли больше платёж, значит оплатили больше сумма по остатку долга
+                        payment.setPaymentAmount(paymentOfUser); // уставнавливаем новый платёж
+
+
+                        // новый остаток долга
+                        BigDecimal ostatokAfterNewPayment = payment.getBeforePayment().subtract(paymentOfUser);
+                        payment.setAfterPayment(ostatokAfterNewPayment);
+
+                        // теперь нужно пересчитать все платежи
+                        Integer creditPeriod = payments.size() - i - 1; // срок кредитования, который равен количеству оставшихся платежей
+
+                        // TODO нужно рассчитать платежи как ostatokAfterNewPayment / creditPeriod
+
+
+                        // вычисляем долг на текущий момент
+                        BigDecimal percentRate = (credit.getPercentRate().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)).divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_UP);
+                        BigDecimal currentCreditAmount = payment.getPercent().divide(percentRate, 4, RoundingMode.HALF_UP);
+                        currentCreditAmount = currentCreditAmount.add(payment.getPercent());
+                        currentCreditAmount = currentCreditAmount.subtract(paymentOfUser);
+
+
+                        BigDecimal paymentForNewPlan = ostatokAfterNewPayment.divide(BigDecimal.valueOf(creditPeriod), 4, RoundingMode.HALF_EVEN);
+
+                        List<PaymentEntity> newPayments = createListOfPayments(currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), creditPeriod, credit);
+
+                        // теперь нужно сохранить все эти платежи
+
+                        int count = 0; // счётчик для newPayments
+                        for (int j = i + 1; j < payments.size(); j++) {
+                            PaymentEntity paymentToChange = payments.get(j); // платёж, который нужно поменять
+                            PaymentEntity paymentChanging = newPayments.get(count); // платёж, у которого есть данные, чтобы изменить платёж по графику (выше)
+                            count++;
+
+                            paymentToChange.setBeforePayment(paymentChanging.getBeforePayment());
+                            paymentToChange.setAfterPayment(paymentChanging.getAfterPayment());
+                            paymentToChange.setPercent(paymentChanging.getPercent());
+                            paymentToChange.setPaymentAmount(paymentChanging.getPaymentAmount());
+                            paymentToChange.setRepaymentCredit(paymentChanging.getRepaymentCredit());
+                        }
+
+
+//                        // нужно немного изменить платёж в (i+1) из-за сложностей округления
+//                        BigDecimal originalSum = credit.getPayment().multiply(BigDecimal.valueOf(credit.getCreditPeriod()));
+//                        BigDecimal currentSum = BigDecimal.ZERO;
+//
+//                        for (int j = 0; j < payments.size(); j++) {
+//                            currentSum = currentSum.add(payments.get(j).getPaymentAmount());
+//                        }
+//
+//                        BigDecimal diffBetweenOriginalAndCurrentSum = originalSum.subtract(currentSum);
+//
+//                        if (diffBetweenOriginalAndCurrentSum.compareTo(BigDecimal.ZERO) > 0) {
+//                            payments.get(i + 1).setPaymentAmount(payments.get(i + 1).getPaymentAmount().add(diffBetweenOriginalAndCurrentSum));
+//                        }
+//
+//                        if ((i + 1) == payments.size() - 1) {
+//                            payments.get(i + 1).setBeforePayment(payments.get(i + 1).getBeforePayment().add(diffBetweenOriginalAndCurrentSum));
+//                        }
+
+                        // сохраняем кредит, вместе с его списком платежей
+                        creditRepository.save(credit);
+
+                        return AckDto.makeDefault(true);
+                    }
+
+                } else {
+                    // если сумма платежа равняется по плану, то просто поставим статус PAID
+                    payment.setStatus(StatusEnum.PAID);
+
+                    creditRepository.save(credit); // сохраняем кредит вместе с листом payment
+
+                    return AckDto.makeDefault(true);
+                }
+
+
+            }
+        }
+
+        if (flag) {
+            // это означает, что в качестве даты платежа была выбрана дата, которой нет в списке платежей
+            throw new BadRequestException("The date you selected was not found in the payment schedule.");
+        }
+
+
+        // до этой строчки код никогда не дойдёт
+        return AckDto.makeDefault(true);
+    }
 }
