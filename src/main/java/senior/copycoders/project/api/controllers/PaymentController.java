@@ -7,10 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import senior.copycoders.project.api.dto.AckDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.services.PaymentService;
@@ -37,7 +34,7 @@ public class PaymentController {
     }
 
 
-    @GetMapping("/api/credit/{credit_id}/makePayment")
+    @PatchMapping("/api/credit/{credit_id}/makePayment")
     @Operation(
             summary = "Начисления платежа по кредиту"
     )
