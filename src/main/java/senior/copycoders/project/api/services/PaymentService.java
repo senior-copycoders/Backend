@@ -16,7 +16,8 @@ import senior.copycoders.project.api.factories.PaymentDtoFactory;
 import senior.copycoders.project.api.factories.PaymentWithCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
-import senior.copycoders.project.store.enums.StatusEnum;
+import senior.copycoders.project.store.enums.StatusOfPaymentOrCredit;
+import senior.copycoders.project.store.enums.TypeOfCredit;
 import senior.copycoders.project.store.repositories.CreditRepository;
 import senior.copycoders.project.store.repositories.PaymentRepository;
 
@@ -49,9 +50,9 @@ public class PaymentService {
      * @param creditAmount   сумма кредита
      * @param percentRate    процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
      * @param creditPeriod   срок кредитования в месяцах
-     * @param saveCredit     сущность кредит, к которому привязаны платежи
+     * @param currentCredit  сущность кредит, к которому привязаны платежи
      */
-    public List<PaymentDto> calculateAndSavePayments(String dateOfFirstPayment, BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
+    public List<PaymentDto> calculatePayments(String dateOfFirstPayment, BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, CreditEntity currentCredit, TypeOfCredit typeOfCredit) {
         // валидация данных для платежа
         controllerHelper.validateDataOfCredit(dateOfFirstPayment, initialPayment, creditAmount, percentRate, creditPeriod);
 
@@ -62,22 +63,142 @@ public class PaymentService {
         // остаток кредита = creditAmount - initialPayment
         BigDecimal ostatokOfCredit = creditAmount.subtract(initialPayment);
 
-        // вычисляем платёж
-        BigDecimal payment = calculatePayment(ostatokOfCredit, percentRate, creditPeriod);
+        // список платежей, который мы будем возвращать
+        List<PaymentEntity> payments;
 
-
-        // Теперь нужно сформировать список всех платежей
+        // дата первого платежа
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDate date = LocalDate.parse(dateOfFirstPayment, formatter);
-        List<PaymentEntity> payments = createListOfPayments(date, ostatokOfCredit, payment, percentRate, creditPeriod, saveCredit);
 
-        // Сохраняем список платежей в БД
-        paymentRepository.saveAll(payments);
+        // аннуитет
+        if (typeOfCredit == TypeOfCredit.ANNUITY) {
+            // вычисляем платёж
+            BigDecimal payment = calculatePaymentOfAnnuityCredit(ostatokOfCredit, percentRate, creditPeriod);
 
+            // Теперь нужно сформировать список всех платежей
+            payments = createListOfAnnuityCredit(date, ostatokOfCredit, payment, percentRate, creditPeriod, currentCredit, false, BigDecimal.valueOf(0));
+        }
+
+        // дифференцированный
+        else {
+            payments = createListOfDifferentiatedCredit(date, ostatokOfCredit, percentRate, creditPeriod, currentCredit, false, BigDecimal.valueOf(0));
+        }
+
+        currentCredit.setPaymentList(payments);
         // Теперь нужно сформировать список paymentDto
         return createListOfPaymentDto(payments);
 
+    }
 
+
+    /**
+     * Метод для вычисления списка платежей по дифференцированному кредиту
+     *
+     * @param creditAmount  сумма кредита
+     * @param percentRate   годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod  срок кредитования в месяцах
+     * @param currentCredit кредит, к которому привязаны платежи
+     * @return список платежей
+     */
+    private List<PaymentEntity> createListOfDifferentiatedCredit(LocalDate date, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, CreditEntity currentCredit, boolean isNeedCheck, BigDecimal helpTotalSum) {
+
+        List<PaymentEntity> payments = new ArrayList<>();
+
+        // посчитаем общую сумму долга
+        BigDecimal totalSum = createTotalSumForDifferentiatedCredit(creditAmount, percentRate, creditPeriod);
+
+        if (isNeedCheck) {
+            if (totalSum.compareTo(helpTotalSum) != 0) {
+                totalSum = helpTotalSum;
+            }
+        }
+
+        // каждый месяц долг должен уменьшаться на эту величину
+        BigDecimal decrease = creditAmount.divide(BigDecimal.valueOf(creditPeriod), 2, RoundingMode.HALF_EVEN);
+
+        // r = r / 100;
+        percentRate = percentRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_EVEN);
+
+        // r = r / 12;
+        percentRate = percentRate.divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_EVEN);
+
+
+        for (int i = 1; i <= creditPeriod; i++) {
+            PaymentEntity paymentEntity = new PaymentEntity();
+
+            // начисляем проценты
+            BigDecimal percent = creditAmount.multiply(percentRate).setScale(2, RoundingMode.HALF_EVEN);
+
+            // платёж = проценты + постоянная часть
+            BigDecimal payment = percent.add(decrease).setScale(2, RoundingMode.HALF_EVEN);
+
+            paymentEntity.setPaymentAmount(payment);
+
+            // привязываем платёж к кредиту
+            paymentEntity.setCredit(currentCredit);
+            // установка даты
+            paymentEntity.setPaymentDate(date);
+            // установка общей суммы выплат до платежа
+            paymentEntity.setBeforePayment(totalSum);
+            // погашение процентов
+            paymentEntity.setPercent(percent);
+            // погашение долга
+            paymentEntity.setRepaymentCredit(decrease);
+
+            // уменьшим текущую сумма долга
+            creditAmount = creditAmount.subtract(decrease);
+            // установим дату следующего платежа
+            date = date.plusMonths(1);
+            // уменьшим общую сумму выплат
+            totalSum = totalSum.subtract(payment).setScale(2, RoundingMode.HALF_EVEN);
+
+            // установим общую сумму выплат после платежа
+            paymentEntity.setAfterPayment(totalSum);
+            // установим статус - не оплачен
+            paymentEntity.setStatus(StatusOfPaymentOrCredit.PENDING);
+
+            // установим номер платежа
+            paymentEntity.setPaymentNumber(i);
+
+            payments.add(paymentEntity);
+        }
+
+        PaymentEntity lastPayment = payments.get(payments.size() - 1);
+
+        // проверим последний платёж, из-за неточности округления может быть проблемы
+        if (lastPayment.getAfterPayment().compareTo(BigDecimal.ZERO) != 0) {
+            lastPayment.setPaymentAmount(lastPayment.getPaymentAmount().add(lastPayment.getAfterPayment()));
+            lastPayment.setPercent(lastPayment.getPercent().add(lastPayment.getAfterPayment()));
+            lastPayment.setAfterPayment(BigDecimal.ZERO);
+        }
+
+        return payments;
+
+    }
+
+
+    /**
+     * Метод для расчёта общей суммы выплат для дифференцированного кредита
+     *
+     * @param creditAmount сумма кредита
+     * @param percentRate  годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod срок кредитования в месяцах
+     */
+    private BigDecimal createTotalSumForDifferentiatedCredit(BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+        // Общая сумма выплат = сумма кредита + r/(100*12) * сумма кредита * (n+1) / 2;
+
+        // r = r / 100;
+        percentRate = percentRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_EVEN);
+
+        // r = r / 12;
+        percentRate = percentRate.divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_EVEN);
+
+        // r/(100*12) * сумма кредита * (n+1) / 2
+        BigDecimal result = (percentRate.multiply(creditAmount)).multiply(BigDecimal.valueOf(creditPeriod).add(BigDecimal.valueOf(1))).divide(BigDecimal.valueOf(2), 4, RoundingMode.HALF_EVEN);
+
+
+        // сумма кредита + r/(100*12) * сумма кредита * (n+1) / 2;
+        return result.add(creditAmount).setScale(2, RoundingMode.HALF_EVEN);
     }
 
 
@@ -120,14 +241,14 @@ public class PaymentService {
 
 
     /**
-     * Метод для вычисления платежа
+     * Метод для вычисления платежа по аннуитетному кредиту
      *
      * @param creditAmount сумма кредита
      * @param percentRate  годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
      * @param creditPeriod срок кредитования в месяцах
      * @return платёж
      */
-    private BigDecimal calculatePayment(BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+    private BigDecimal calculatePaymentOfAnnuityCredit(BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
         // Ежемесячный платеж = (Сумма кредита * Процентная ставка / 12) / (1 - (1 + Процентная ставка / 12)^(-Срок кредита в месяцах))
 
         // Преобразуем percentRate, разделив его на 100
@@ -156,37 +277,45 @@ public class PaymentService {
 
 
     /**
-     * Метод для вычисления списка платежей по кредиту по месяцам
+     * Метод для вычисления списка платежей по аннуитетному кредиту
      *
-     * @param creditAmount сумма кредита
-     * @param payment      платёж
-     * @param percentRate  годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
-     * @param creditPeriod срок кредитования в месяцах
-     * @param saveCredit   кредит, к которому привязаны платежи
+     * @param creditAmount  сумма кредита
+     * @param payment       платёж
+     * @param percentRate   годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod  срок кредитования в месяцах
+     * @param currentCredit кредит, к которому привязаны платежи
      * @return список платежей
      */
-    private List<PaymentEntity> createListOfPayments(LocalDate dateOfFirstPayment, BigDecimal creditAmount, BigDecimal payment, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
+    private List<PaymentEntity> createListOfAnnuityCredit(LocalDate dateOfFirstPayment, BigDecimal creditAmount, BigDecimal payment, BigDecimal percentRate, Integer creditPeriod, CreditEntity currentCredit, boolean isNeedCheck, BigDecimal helpTotalSum) {
         // Общая сумма денег, которую мы заплатим по итогу, равняется payment * creditPeriod
 
         // Преобразуем percentRate, разделив его на 100
-        percentRate = percentRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_EVEN);
+        percentRate = percentRate.divide(BigDecimal.valueOf(100), 38, RoundingMode.HALF_EVEN);
 
-        BigDecimal totalSum = payment.multiply(BigDecimal.valueOf(creditPeriod));
+        BigDecimal totalSum = payment.multiply(BigDecimal.valueOf(creditPeriod)).setScale(2, RoundingMode.HALF_EVEN);
+
+        if (isNeedCheck) {
+            if (totalSum.compareTo(helpTotalSum) != 0) {
+                totalSum = helpTotalSum;
+            }
+        }
+
+
         List<PaymentEntity> payments = new ArrayList<>();
 
         for (int i = 1; i <= creditPeriod; i++) {
 
             // Посчитаем какая часть платежа уйдёт на оплату процентов
-            BigDecimal currentPercent = (creditAmount.multiply(percentRate)).divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_EVEN);
+            BigDecimal currentPercent = (creditAmount.multiply(percentRate)).divide(BigDecimal.valueOf(12), 38, RoundingMode.HALF_EVEN);
 
             // Посчитаем какая часть платежа уйдёт на погашение основного долга
-            BigDecimal repaymentCredit = payment.subtract(currentPercent);
+            BigDecimal repaymentCredit = payment.subtract(currentPercent).setScale(38, RoundingMode.HALF_EVEN);
 
             // сумма долга до платежа
             BigDecimal beforePayment = new BigDecimal(totalSum.toString());
 
             // сумма долга после платежи
-            totalSum = totalSum.subtract(payment);
+            totalSum = totalSum.subtract(payment).setScale(38, RoundingMode.HALF_EVEN);
 
 
             // акутальная сумма кредита после платежа
@@ -199,14 +328,15 @@ public class PaymentService {
                     .percent(currentPercent)
                     .repaymentCredit(repaymentCredit)
                     .afterPayment(totalSum)
-                    .credit(saveCredit)
-                    .status(StatusEnum.PENDING)
+                    .credit(currentCredit)
+                    .status(StatusOfPaymentOrCredit.PENDING)
                     .beforePayment(beforePayment)
                     .build());
 
             dateOfFirstPayment = dateOfFirstPayment.plusMonths(1);
 
         }
+
 
         return payments;
     }
@@ -223,16 +353,7 @@ public class PaymentService {
 
         CreditEntity credit = controllerHelper.getCreditOrThrowException(creditId);
 
-        LocalDate dateOfPayment;
-
-        try {
-            // Определяем формат даты
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            // Пытаемся преобразовать строку в LocalDate
-            dateOfPayment = LocalDate.parse(date, formatter);
-        } catch (DateTimeParseException e) {
-            throw new BadRequestException("Incorrect date format");
-        }
+        LocalDate dateOfPayment = controllerHelper.getDateOrThrowException(date);
 
         // получим список платежей
         List<PaymentEntity> payments = credit.getPaymentList();
@@ -248,7 +369,7 @@ public class PaymentService {
                 PaymentEntity payment = payments.get(i); // текущая сущность платежа
 
                 // для начала посмотрим, внесён ли уже платёж
-                if (StatusEnum.PAID == payment.getStatus()) {
+                if (StatusOfPaymentOrCredit.PAID == payment.getStatus()) {
                     // платёж на данную дату уже внесён, генерируем исключение
                     throw new BadRequestException("The payment has already been made on this date.");
                 }
@@ -256,12 +377,12 @@ public class PaymentService {
                 // теперь посмотрим на порядок внесения платежей, вдруг ещё не был внесён платёж по предыдущему платежу
                 if (i != 0) {
                     PaymentEntity previous = payments.get(i - 1);
-                    if (previous.getStatus() == StatusEnum.PENDING) {
+                    if (previous.getStatus() == StatusOfPaymentOrCredit.PENDING) {
                         throw new BadRequestException("First, you need to make payments for previous years.");
                     }
                 }
 
-
+                // установка флага, что мы нашли нужную дату
                 flag = false;
 
                 // платёж по плану
@@ -291,17 +412,18 @@ public class PaymentService {
                         // платёж равен остатку долга, то есть пользователь погасил кредит на данном этапе
                         // нужно удалить следующие за ним платежи, так как кредит мы уже выплатили
 
-                        payment.setStatus(StatusEnum.PAID); // ставим статус оплачено
+                        payment.setStatus(StatusOfPaymentOrCredit.PAID); // ставим статус оплачено
                         payment.setAfterPayment(BigDecimal.ZERO); // сумма после платежа равняется нулю, так как мы весь платёж погасили
                         payment.setPaymentAmount(paymentOfUser); // меняем сумма платежа
 
-                        // теперь нужно посчитать сумма процентов
+                        // теперь нужно посчитать сумму процентов
                         BigDecimal sumOfPercent = payment.getPercent();
 
                         // и сразу же будем удалять лишние платежи
                         for (int j = payments.size() - 1; j > i; j--) {
                             sumOfPercent = sumOfPercent.add(payments.get(j).getPercent());
-                            payments.remove(j);
+                            PaymentEntity remove = payments.remove(j);
+                            paymentRepository.delete(remove);
                         }
 
                         payment.setPercent(sumOfPercent); // меняем сумма процентов
@@ -312,14 +434,16 @@ public class PaymentService {
                         return AckDto.makeDefault(true);
 
                     } else {
+
+
                         // здесь нужно пересчитать все платежи, начиная с i+1 платежа
 
                         // но сначала поменяем сущность - текущий платёж
                         BigDecimal diff = paymentOfUser.subtract(paymentForPlan);
 
-                        payment.setStatus(StatusEnum.PAID); // статус оплачено
+                        payment.setStatus(StatusOfPaymentOrCredit.PAID); // статус оплачено
                         payment.setRepaymentCredit(payment.getRepaymentCredit().add(diff)); // мы же внесли больше платёж, значит оплатили больше сумма по остатку долга
-                        payment.setPaymentAmount(paymentOfUser); // уставнавливаем новый платёж
+                        payment.setPaymentAmount(paymentOfUser); // устанавливаем новый платёж
 
 
                         // новый остаток долга
@@ -331,18 +455,35 @@ public class PaymentService {
 
 
                         // вычисляем долг на текущий момент
+
+                        // процентная ставка
                         BigDecimal percentRate = (credit.getPercentRate().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)).divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_UP);
-                        BigDecimal currentCreditAmount = payment.getPercent().divide(percentRate, 4, RoundingMode.HALF_UP);
+
+                        // здесь вычисляем какой будет сумма долга после нового платежа
+                        BigDecimal currentCreditAmount = payment.getPercent().divide(percentRate, 2, RoundingMode.HALF_UP);
                         currentCreditAmount = currentCreditAmount.add(payment.getPercent());
                         currentCreditAmount = currentCreditAmount.subtract(paymentOfUser);
 
+                        // создаём список новых платежей
+                        List<PaymentEntity> newPayments;
+                        // узнаём тип кредита
+                        TypeOfCredit typeOfCredit = credit.getTypeOfCredit();
 
-                        BigDecimal paymentForNewPlan = ostatokAfterNewPayment.divide(BigDecimal.valueOf(creditPeriod), 4, RoundingMode.HALF_EVEN);
 
-                        List<PaymentEntity> newPayments = createListOfPayments(payments.get(i + 1).getPaymentDate(), currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), creditPeriod, credit);
+                        // аннуитет
+                        if (typeOfCredit == TypeOfCredit.ANNUITY) {
+                            BigDecimal paymentForNewPlan = ostatokAfterNewPayment.divide(BigDecimal.valueOf(creditPeriod), 38, RoundingMode.HALF_EVEN);
+
+                            newPayments = createListOfAnnuityCredit(payments.get(i + 1).getPaymentDate(), currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), creditPeriod, credit, true, payments.get(i).getAfterPayment());
+                        }
+
+                        // дифференцированный
+                        else {
+
+                            newPayments = createListOfDifferentiatedCredit(payments.get(i + 1).getPaymentDate(), currentCreditAmount, credit.getPercentRate(), creditPeriod, credit, true, payments.get(i).getAfterPayment());
+                        }
 
                         // теперь нужно сохранить все эти платежи
-
                         int count = 0; // счётчик для newPayments
                         for (int j = i + 1; j < payments.size(); j++) {
                             PaymentEntity paymentToChange = payments.get(j); // платёж, который нужно поменять
@@ -364,7 +505,7 @@ public class PaymentService {
 
                 } else {
                     // если сумма платежа равняется по плану, то просто поставим статус PAID
-                    payment.setStatus(StatusEnum.PAID);
+                    payment.setStatus(StatusOfPaymentOrCredit.PAID);
 
                     creditRepository.save(credit); // сохраняем кредит вместе с листом payment
 
@@ -383,5 +524,47 @@ public class PaymentService {
 
         // до этой строчки код никогда не дойдёт
         return AckDto.makeDefault(true);
+    }
+
+
+    /**
+     * Рассчитать платёж по кредиту (для дифференцированного - первый платёж)
+     *
+     * @param creditAmount   сумма кредита
+     * @param percentRate    годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod   срок кредитования в месяцах
+     * @param typeOfCredit   тип кредита (либо аннуитет, либо дифференцированный)
+     * @param initialPayment начальный платёж
+     */
+    public BigDecimal findOutThePayment(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, TypeOfCredit typeOfCredit) {
+
+        // сначала валидация данных кредита
+        // "2024-08-24" - заглушка, чтобы прошла валидация по дате
+        controllerHelper.validateDataOfCredit("2024-08-24", initialPayment, creditAmount, percentRate, creditPeriod);
+
+        BigDecimal payment;
+        // для начала нужно подсчитать остаток кредита после начального взноса
+        // остаток кредита = creditAmount - initialPayment
+        BigDecimal ostatokOfCredit = creditAmount.subtract(initialPayment);
+
+
+        if (typeOfCredit == TypeOfCredit.ANNUITY) {
+            payment = calculatePaymentOfAnnuityCredit(ostatokOfCredit, percentRate, creditPeriod);
+        } else {
+            // r = r / 100;
+            percentRate = percentRate.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_EVEN);
+
+            // r = r / 12;
+            percentRate = percentRate.divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_EVEN);
+
+            // постоянная часть уменьшения кредита
+            BigDecimal decrease = ostatokOfCredit.divide(BigDecimal.valueOf(creditPeriod), 4, RoundingMode.HALF_EVEN);
+
+            // тут прибавляем проценты ещё
+            payment = decrease.add(percentRate.multiply(ostatokOfCredit));
+        }
+
+
+        return payment;
     }
 }

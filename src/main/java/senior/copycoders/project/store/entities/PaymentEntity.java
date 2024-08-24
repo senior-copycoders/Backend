@@ -2,11 +2,10 @@ package senior.copycoders.project.store.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
-import senior.copycoders.project.store.enums.StatusEnum;
+import senior.copycoders.project.store.enums.StatusOfPaymentOrCredit;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment")
@@ -44,7 +43,7 @@ public class PaymentEntity implements Comparable<PaymentEntity> {
     CreditEntity credit;
 
     @Column(name = "status")
-    StatusEnum status;
+    StatusOfPaymentOrCredit status;
 
     @Column(name = "credit_before-payment")
     BigDecimal beforePayment;

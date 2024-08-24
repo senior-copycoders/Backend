@@ -80,4 +80,20 @@ public class ControllerHelper {
         return creditRepository.findById(creditId)
                 .orElseThrow(() -> new NotFoundException(String.format("Credit with id=%d doesn't exists", creditId)));
     }
+
+    /**
+     * Проверка строки на правильный формат даты
+     *
+     * @param date строка, которая должна из себя представлять дату в формате yyyy-MM-dd
+     */
+    public LocalDate getDateOrThrowException(String date) {
+        try {
+            // Определяем формат даты
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            // Пытаемся преобразовать строку в LocalDate
+            return LocalDate.parse(date, formatter);
+        } catch (DateTimeParseException e) {
+            throw new BadRequestException("Incorrect date format");
+        }
+    }
 }

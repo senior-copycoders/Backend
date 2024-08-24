@@ -16,7 +16,6 @@ import senior.copycoders.project.api.services.CreditService;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @Tag(name = "Кредиты", description = "Взаимодействие с кредитами")
@@ -29,10 +28,10 @@ public class CreditController {
     @Operation(
             summary = "Инициализация кредита и всех платежей к нему"
     )
-    public PaymentWithCreditDto createCredit(@RequestParam(name = "dateOfFirstPayment") @Parameter(description = "дата первого платежа (формат yyyy-MM-dd)") String dateOfFirstPayment, @RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod) {
+    public PaymentWithCreditDto createCredit(@RequestParam(name = "dateOfFirstPayment") @Parameter(description = "дата первого платежа (формат yyyy-MM-dd)") String dateOfFirstPayment, @RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod, @RequestParam(name = "typeOfCredit") @Parameter(description = "тип кредита, false - аннуитет, true - дифференцированный") Boolean type) {
 
         // Получаем из creditService объект нужного класса
-        return creditService.calculateAndSave(dateOfFirstPayment, BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod);
+        return creditService.calculateSchedule(dateOfFirstPayment, BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod, type);
     }
 
 

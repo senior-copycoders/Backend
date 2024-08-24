@@ -1,5 +1,5 @@
 package senior.copycoders.project.store.enums;
 
-public enum StatusEnum {
+public enum StatusOfPaymentOrCredit {
     PAID, PENDING
 }

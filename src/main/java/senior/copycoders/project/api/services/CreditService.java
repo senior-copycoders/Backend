@@ -11,21 +11,14 @@ import senior.copycoders.project.api.dto.CreditDto;
 import senior.copycoders.project.api.dto.PaymentDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.factories.CreditDtoFactory;
-import senior.copycoders.project.api.factories.PaymentDtoFactory;
 import senior.copycoders.project.api.factories.PaymentWithCreditDtoFactory;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
+import senior.copycoders.project.store.enums.TypeOfCredit;
 import senior.copycoders.project.store.repositories.CreditRepository;
-import senior.copycoders.project.store.repositories.PaymentRepository;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 
 @Service
@@ -46,17 +39,22 @@ public class CreditService {
      * @param percentRate    процентная ставка
      * @param creditPeriod   срок кредитования (в месяцах, положительное целое число)
      */
-    public CreditEntity saveCredit(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, BigDecimal payment, Integer creditPeriod) {
+    public CreditEntity saveCredit(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, BigDecimal payment, Integer creditPeriod, TypeOfCredit typeOfCredit) {
         return creditRepository.save(CreditEntity.builder()
                 .initialPayment(initialPayment)
                 .creditAmount(creditAmount)
                 .percentRate(percentRate)
                 .creditPeriod(creditPeriod)
                 .payment(payment)
+                .typeOfCredit(typeOfCredit)
                 .build());
 
     }
 
+    public CreditEntity saveCredit(CreditEntity credit) {
+        return creditRepository.save(credit);
+
+    }
 
     /**
      * Метод, который сохраняет кредит, вместе с графиком его платежей
@@ -66,17 +64,20 @@ public class CreditService {
      * @param percentRate    процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
      * @param creditPeriod   срок кредитования в месяцах
      */
-    public PaymentWithCreditDto calculateAndSave(String dateOfFirstPayment, BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+    public PaymentWithCreditDto calculateSchedule(String dateOfFirstPayment, BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, Boolean type) {
 
-        // Сохраним данный кредит в БД
-        // Ежемесячный платёж позже поменяем
-        CreditEntity saveCredit = saveCredit(initialPayment, creditAmount, percentRate, BigDecimal.valueOf(1), creditPeriod);
+        // для начала установим тип кредита
+        // false - аннуитет, когда true - дифф.
+        TypeOfCredit typeOfCredit = type ? TypeOfCredit.DIFFERENTIATED : TypeOfCredit.ANNUITY;
 
-        List<PaymentDto> payments = paymentService.calculateAndSavePayments(dateOfFirstPayment, initialPayment, creditAmount, percentRate, creditPeriod, saveCredit);
 
-        saveCredit.setPayment(payments.get(0).getPaymentAmount());
+        CreditEntity currentCredit = saveCredit(initialPayment, creditAmount, percentRate, BigDecimal.valueOf(1), creditPeriod, typeOfCredit);
 
-        return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(saveCredit), payments);
+        List<PaymentDto> payments = paymentService.calculatePayments(dateOfFirstPayment, initialPayment, creditAmount, percentRate, creditPeriod, currentCredit, typeOfCredit);
+
+        currentCredit.setPayment(payments.get(0).getPaymentAmount());
+
+        return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(currentCredit), payments);
     }
 
 

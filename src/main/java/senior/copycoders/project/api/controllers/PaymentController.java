@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import senior.copycoders.project.api.dto.AckDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.services.PaymentService;
+import senior.copycoders.project.store.enums.TypeOfCredit;
 
+import java.math.BigDecimal;
 
 
 @RestController
@@ -33,7 +35,7 @@ public class PaymentController {
     }
 
 
-    @PatchMapping("/api/credit/{credit_id}/makePayment")
+    @PatchMapping("/api/credit/{credit_id}/make-payment")
     @Operation(
             summary = "Начисления платежа по кредиту"
     )
@@ -43,7 +45,16 @@ public class PaymentController {
     }
 
 
+    @GetMapping("/api/calculate-payment")
+    @Operation(
+            summary = "Узнать платёж по кредиту (для дифференцированного - первый платёж)"
+    )
+    public BigDecimal getPayment(@RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod, @RequestParam(name = "typeOfCredit") @Parameter(description = "тип кредита, false - аннуитет, true - дифференцированный") Boolean type) {
 
+        TypeOfCredit typeOfCredit = type ? TypeOfCredit.DIFFERENTIATED : TypeOfCredit.ANNUITY;
+
+        return paymentService.findOutThePayment(BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod, typeOfCredit);
+    }
 
 
 }

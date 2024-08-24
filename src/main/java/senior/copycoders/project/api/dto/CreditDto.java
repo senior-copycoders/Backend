@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import senior.copycoders.project.store.enums.TypeOfCredit;
 
 import java.math.BigDecimal;
 
@@ -41,5 +42,11 @@ public class CreditDto {
     @NonNull
     @Schema(description = "ежемесячный платёж")
     BigDecimal payment;
+
+    @JsonProperty("type_of_credit")
+    @Schema(description = "тип кредита (либо аннуитет, либо дифференцированный")
+    TypeOfCredit typeOfCredit;
+
+
 }
 

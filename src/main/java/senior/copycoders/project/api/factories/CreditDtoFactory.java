@@ -16,6 +16,7 @@ public class CreditDtoFactory {
                 .percentRate(creditEntity.getPercentRate())
                 .creditPeriod(creditEntity.getCreditPeriod())
                 .payment(creditEntity.getPayment())
+                .typeOfCredit(creditEntity.getTypeOfCredit())
                 .build();
     }
 }
