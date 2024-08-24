@@ -66,19 +66,18 @@ public class CreditService {
      * @param percentRate    процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
      * @param creditPeriod   срок кредитования в месяцах
      */
-    public PaymentWithCreditDto calculateAndSave(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
+    public PaymentWithCreditDto calculateAndSave(String dateOfFirstPayment, BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod) {
 
         // Сохраним данный кредит в БД
         // Ежемесячный платёж позже поменяем
         CreditEntity saveCredit = saveCredit(initialPayment, creditAmount, percentRate, BigDecimal.valueOf(1), creditPeriod);
 
-        List<PaymentDto> payments = paymentService.calculateAndSavePayments(initialPayment, creditAmount, percentRate, creditPeriod, saveCredit);
+        List<PaymentDto> payments = paymentService.calculateAndSavePayments(dateOfFirstPayment, initialPayment, creditAmount, percentRate, creditPeriod, saveCredit);
 
         saveCredit.setPayment(payments.get(0).getPaymentAmount());
 
         return paymentDtoWithCreditDtoFactory.makePaymentWithIdCreditDto(creditDtoFactory.makeCreditDto(saveCredit), payments);
     }
-
 
 
     /**

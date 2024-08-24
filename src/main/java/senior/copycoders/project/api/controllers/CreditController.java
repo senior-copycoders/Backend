@@ -29,10 +29,10 @@ public class CreditController {
     @Operation(
             summary = "Инициализация кредита и всех платежей к нему"
     )
-    public PaymentWithCreditDto createCredit(@RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod) {
+    public PaymentWithCreditDto createCredit(@RequestParam(name = "dateOfFirstPayment") @Parameter(description = "дата первого платежа (формат yyyy-MM-dd)") String dateOfFirstPayment, @RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod) {
 
-        // Получаем из creditService объекта нужно класса
-        return creditService.calculateAndSave(BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod);
+        // Получаем из creditService объект нужного класса
+        return creditService.calculateAndSave(dateOfFirstPayment, BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod);
     }
 
 

@@ -12,8 +12,7 @@ import senior.copycoders.project.api.dto.AckDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.services.PaymentService;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
+
 
 @RestController
 @Tag(name = "Платежи", description = "Взаимодействие с платежами")
@@ -28,7 +27,7 @@ public class PaymentController {
     )
     public PaymentWithCreditDto getCreditById(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId) {
 
-        // Получаем из creditService список всех платежей
+        // Получаем все платежи из paymentService
         return paymentService.getAllPaymentsByCreditId(creditId);
 
     }
@@ -42,6 +41,9 @@ public class PaymentController {
 
         return paymentService.makePayment(creditId, date, currentPayment);
     }
+
+
+
 
 
 }

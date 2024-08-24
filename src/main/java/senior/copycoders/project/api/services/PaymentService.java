@@ -51,9 +51,10 @@ public class PaymentService {
      * @param creditPeriod   срок кредитования в месяцах
      * @param saveCredit     сущность кредит, к которому привязаны платежи
      */
-    public List<PaymentDto> calculateAndSavePayments(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
+    public List<PaymentDto> calculateAndSavePayments(String dateOfFirstPayment, BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
         // валидация данных для платежа
-        controllerHelper.validateDataOfCredit(initialPayment, creditAmount, percentRate, creditPeriod);
+        controllerHelper.validateDataOfCredit(dateOfFirstPayment, initialPayment, creditAmount, percentRate, creditPeriod);
+
 
         // Нам важна точность вычислений, поэтому для вычислений будем использовать BigDecimal
 
@@ -66,7 +67,9 @@ public class PaymentService {
 
 
         // Теперь нужно сформировать список всех платежей
-        List<PaymentEntity> payments = createListOfPayments(ostatokOfCredit, payment, percentRate, creditPeriod, saveCredit);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        LocalDate date = LocalDate.parse(dateOfFirstPayment, formatter);
+        List<PaymentEntity> payments = createListOfPayments(date, ostatokOfCredit, payment, percentRate, creditPeriod, saveCredit);
 
         // Сохраняем список платежей в БД
         paymentRepository.saveAll(payments);
@@ -162,7 +165,7 @@ public class PaymentService {
      * @param saveCredit   кредит, к которому привязаны платежи
      * @return список платежей
      */
-    private List<PaymentEntity> createListOfPayments(BigDecimal creditAmount, BigDecimal payment, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
+    private List<PaymentEntity> createListOfPayments(LocalDate dateOfFirstPayment, BigDecimal creditAmount, BigDecimal payment, BigDecimal percentRate, Integer creditPeriod, CreditEntity saveCredit) {
         // Общая сумма денег, которую мы заплатим по итогу, равняется payment * creditPeriod
 
         // Преобразуем percentRate, разделив его на 100
@@ -170,9 +173,6 @@ public class PaymentService {
 
         BigDecimal totalSum = payment.multiply(BigDecimal.valueOf(creditPeriod));
         List<PaymentEntity> payments = new ArrayList<>();
-
-        // Первая дата платёжа, это текущая дата + 1 месяц
-        LocalDate date = LocalDate.now().plusMonths(1);
 
         for (int i = 1; i <= creditPeriod; i++) {
 
@@ -194,7 +194,7 @@ public class PaymentService {
 
             payments.add(PaymentEntity.builder()
                     .paymentNumber(i)
-                    .paymentDate(date)
+                    .paymentDate(dateOfFirstPayment)
                     .paymentAmount(payment)
                     .percent(currentPercent)
                     .repaymentCredit(repaymentCredit)
@@ -204,7 +204,7 @@ public class PaymentService {
                     .beforePayment(beforePayment)
                     .build());
 
-            date = date.plusMonths(1);
+            dateOfFirstPayment = dateOfFirstPayment.plusMonths(1);
 
         }
 
@@ -327,9 +327,7 @@ public class PaymentService {
                         payment.setAfterPayment(ostatokAfterNewPayment);
 
                         // теперь нужно пересчитать все платежи
-                        Integer creditPeriod = payments.size() - i - 1; // срок кредитования, который равен количеству оставшихся платежей
-
-                        // TODO нужно рассчитать платежи как ostatokAfterNewPayment / creditPeriod
+                        int creditPeriod = payments.size() - i - 1; // срок кредитования, который равен количеству оставшихся платежей
 
 
                         // вычисляем долг на текущий момент
@@ -341,7 +339,7 @@ public class PaymentService {
 
                         BigDecimal paymentForNewPlan = ostatokAfterNewPayment.divide(BigDecimal.valueOf(creditPeriod), 4, RoundingMode.HALF_EVEN);
 
-                        List<PaymentEntity> newPayments = createListOfPayments(currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), creditPeriod, credit);
+                        List<PaymentEntity> newPayments = createListOfPayments(payments.get(i + 1).getPaymentDate(), currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), creditPeriod, credit);
 
                         // теперь нужно сохранить все эти платежи
 
@@ -357,25 +355,6 @@ public class PaymentService {
                             paymentToChange.setPaymentAmount(paymentChanging.getPaymentAmount());
                             paymentToChange.setRepaymentCredit(paymentChanging.getRepaymentCredit());
                         }
-
-
-//                        // нужно немного изменить платёж в (i+1) из-за сложностей округления
-//                        BigDecimal originalSum = credit.getPayment().multiply(BigDecimal.valueOf(credit.getCreditPeriod()));
-//                        BigDecimal currentSum = BigDecimal.ZERO;
-//
-//                        for (int j = 0; j < payments.size(); j++) {
-//                            currentSum = currentSum.add(payments.get(j).getPaymentAmount());
-//                        }
-//
-//                        BigDecimal diffBetweenOriginalAndCurrentSum = originalSum.subtract(currentSum);
-//
-//                        if (diffBetweenOriginalAndCurrentSum.compareTo(BigDecimal.ZERO) > 0) {
-//                            payments.get(i + 1).setPaymentAmount(payments.get(i + 1).getPaymentAmount().add(diffBetweenOriginalAndCurrentSum));
-//                        }
-//
-//                        if ((i + 1) == payments.size() - 1) {
-//                            payments.get(i + 1).setBeforePayment(payments.get(i + 1).getBeforePayment().add(diffBetweenOriginalAndCurrentSum));
-//                        }
 
                         // сохраняем кредит, вместе с его списком платежей
                         creditRepository.save(credit);
