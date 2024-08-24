@@ -39,8 +39,7 @@ public class PaymentController {
     @Operation(
             summary = "Начисления платежа по кредиту"
     )
-    public AckDto makePayment(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId, @RequestParam(name = "date") @Parameter(description = "дата платежа (формат yyyy-MM-dd)") String date, @RequestParam(name = "payment") @Parameter(description = "сумма платежа") Double currentPayment) {
-
+    public AckDto makePayment(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId, @RequestParam(name = "date") @Parameter(description = "дата платежа (формат yyyy-MM-dd)") String date, @RequestParam(name = "payment") @Parameter(description = "сумма платежа (до двух знаков после запятой)") Double currentPayment) {
         return paymentService.makePayment(creditId, date, currentPayment);
     }
 
