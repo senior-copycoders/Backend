@@ -30,7 +30,7 @@ public class PaymentEntity implements Comparable<PaymentEntity> {
     @Column(name = "payment_amount")
     BigDecimal paymentAmount;
 
-    @Column(name = "percent")
+    @Column(name = "percent", precision = 38, scale = 11)
     BigDecimal percent;
 
     @Column(name = "repayment_credit")
@@ -47,6 +47,9 @@ public class PaymentEntity implements Comparable<PaymentEntity> {
 
     @Column(name = "credit_before-payment")
     BigDecimal beforePayment;
+
+    @Column(name = "credit_amount")
+    BigDecimal creditAmount;
 
     @Override
     public int compareTo(PaymentEntity o) {

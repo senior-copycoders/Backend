@@ -12,6 +12,7 @@ import senior.copycoders.project.api.dto.AckDto;
 import senior.copycoders.project.api.dto.CreditDto;
 import senior.copycoders.project.api.dto.PaymentWithCreditDto;
 import senior.copycoders.project.api.services.CreditService;
+import senior.copycoders.project.store.enums.CreditConstants;
 
 
 import java.math.BigDecimal;
@@ -28,7 +29,7 @@ public class CreditController {
     @Operation(
             summary = "Инициализация кредита и всех платежей к нему"
     )
-    public PaymentWithCreditDto createCredit(@RequestParam(name = "dateOfFirstPayment") @Parameter(description = "дата первого платежа (формат yyyy-MM-dd)") String dateOfFirstPayment, @RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число)") Integer creditPeriod, @RequestParam(name = "typeOfCredit") @Parameter(description = "тип кредита, false - аннуитет, true - дифференцированный") Boolean type) {
+    public PaymentWithCreditDto createCredit(@RequestParam(name = "dateOfFirstPayment") @Parameter(description = "дата первого платежа (формат yyyy-MM-dd)") String dateOfFirstPayment, @RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой, min = 200_000, max = 30_000_000)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой, min = 0% (не включительно), max = 18%)")  Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число, min = 12 месяцев(1 год), max = 360(30 лет))") Integer creditPeriod, @RequestParam(name = "typeOfCredit") @Parameter(description = "тип кредита, false - аннуитет, true - дифференцированный") Boolean type) {
 
         // Получаем из creditService объект нужного класса
         return creditService.calculateSchedule(dateOfFirstPayment, BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod, type);
@@ -55,6 +56,42 @@ public class CreditController {
 
         return AckDto.makeDefault(true);
     }
+
+    @GetMapping("/api/credit/min-sum")
+    @Operation(
+            summary = "Получение минимальной суммы кредита"
+    )
+    public int getMinSum(){
+        return CreditConstants.MIN_CREDIT_AMOUNT.getValue();
+    }
+
+    @GetMapping("/api/credit/max-sum")
+    @Operation(
+            summary = "Получение максимальной суммы кредита"
+    )
+    public int getMaxSum(){
+        return CreditConstants.MAX_CREDIT_AMOUNT.getValue();
+    }
+
+    @GetMapping("/api/credit/max-rate")
+    @Operation(
+            summary = "Получение максимальной процентной ставки"
+    )
+    public int getMaxInterestRate(){
+        return CreditConstants.MAX_INTEREST_RATE.getValue();
+    }
+
+    @GetMapping("/api/credit/min-rate")
+    @Operation(
+            summary = "Получение минимальной процентной ставки"
+    )
+    public int getMinInterestRate(){
+        return CreditConstants.MIN_INTEREST_RATE.getValue();
+    }
+
+
+
+
 
 
 //    @PatchMapping("/api/credit/{credit_id}")
