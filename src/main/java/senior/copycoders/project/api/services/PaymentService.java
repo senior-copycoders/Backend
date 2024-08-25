@@ -739,7 +739,7 @@ public class PaymentService {
 
 
                             // здесь вычисляем какой будет сумма долга после нового платежа
-                            BigDecimal currentCreditAmount = credit.getCreditAmount();
+                            BigDecimal currentCreditAmount = credit.getCreditAmount().subtract(credit.getInitialPayment());
                             currentCreditAmount = currentCreditAmount.add(currentCreditAmount.multiply(percentRate));
                             currentCreditAmount = currentCreditAmount.subtract(paymentOfUser);
                             newPayment.setCreditAmount(currentCreditAmount);
@@ -780,128 +780,130 @@ public class PaymentService {
                         }
 
                     }
-                } else {
+                }
 
-                    if (i != payments.size() - 1) {
-                        // нужно смотреть, чтобы наша дата была между датами
-                        if (dateOfPayment.isAfter(payments.get(i).getPaymentDate()) && dateOfPayment.isBefore(payments.get(i + 1).getPaymentDate())) {
+                if (i != payments.size() - 1) {
+                    // нужно смотреть, чтобы наша дата была между датами
+                    if (dateOfPayment.isAfter(payments.get(i).getPaymentDate()) && dateOfPayment.isBefore(payments.get(i + 1).getPaymentDate())) {
 
-                            if (payments.get(i).getStatus() == StatusOfPaymentOrCredit.PENDING) {
-                                throw new BadRequestException("First, you need to make payments for previous years.");
+                        if (payments.get(i).getStatus() == StatusOfPaymentOrCredit.PENDING) {
+                            throw new BadRequestException("First, you need to make payments for previous years.");
+                        }
+
+                        if (payments.get(i + 1).getStatus() == StatusOfPaymentOrCredit.PAID) {
+                            throw new BadRequestException("The amount has already been deposited during this period.");
+                        }
+
+                        PaymentEntity previousPayment = payments.get(i);
+                        PaymentEntity newPayment = new PaymentEntity();
+                        int count = i + 2;
+
+                        newPayment.setPaymentDate(dateOfPayment);
+                        newPayment.setPaymentAmount(paymentOfUser);
+                        newPayment.setBeforePayment(previousPayment.getAfterPayment());
+                        newPayment.setPaymentNumber(count);
+                        count++;
+                        // когда платёж больше чем общая сумма выплат
+                        if (paymentOfUser.compareTo(newPayment.getBeforePayment()) > 0) {
+                            throw new BadRequestException("The payment must not exceed the total amount of the debt.");
+                        }
+
+                        newPayment.setStatus(StatusOfPaymentOrCredit.PAID);
+
+                        // если сразу погасили платёж
+                        if (paymentOfUser.compareTo(newPayment.getBeforePayment()) == 0) {
+
+                            newPayment.setAfterPayment(BigDecimal.ZERO);
+
+                            BigDecimal sumOfPercent = BigDecimal.ZERO;
+                            for (int j = payments.size() - 1; j >= i + 1; j--) {
+                                sumOfPercent = payments.get(j).getPercent();
+                                PaymentEntity remove = payments.remove(j);
+                                paymentRepository.delete(remove);
                             }
 
-                            if (payments.get(i + 1).getStatus() == StatusOfPaymentOrCredit.PAID) {
-                                throw new BadRequestException("The amount has already been deposited during this period.");
-                            }
+                            newPayment.setPercent(sumOfPercent);
+                            newPayment.setCredit(credit);
+                            newPayment.setRepaymentCredit(paymentOfUser.subtract(sumOfPercent));
 
-                            PaymentEntity previousPayment = payments.get(i);
-                            PaymentEntity newPayment = new PaymentEntity();
-                            int count = i + 2;
+                            payments.add(newPayment);
+                            creditRepository.save(credit); // сохраняем кредит вместе с листом payment
 
-                            newPayment.setPaymentDate(dateOfPayment);
-                            newPayment.setPaymentAmount(paymentOfUser);
-                            newPayment.setBeforePayment(previousPayment.getAfterPayment());
-                            newPayment.setPaymentNumber(count);
-                            count++;
-                            // когда платёж больше чем общая сумма выплат
-                            if (paymentOfUser.compareTo(newPayment.getBeforePayment()) > 0) {
-                                throw new BadRequestException("The payment must not exceed the total amount of the debt.");
-                            }
+                            return AckDto.makeDefault(true);
+                        } else {
 
-                            // если сразу погасили платёж
-                            if (paymentOfUser.compareTo(newPayment.getBeforePayment()) == 0) {
+                            // поменяем данные текущего платежа
+                            newPayment.setAfterPayment(newPayment.getBeforePayment().subtract(paymentOfUser));
+                            PaymentEntity nextPayment = payments.get(i + 1);
 
-                                newPayment.setAfterPayment(BigDecimal.ZERO);
-
-                                BigDecimal sumOfPercent = BigDecimal.ZERO;
-                                for (int j = payments.size() - 1; j >= i + 1; j--) {
-                                    sumOfPercent = payments.get(j).getPercent();
-                                    PaymentEntity remove = payments.remove(j);
-                                    paymentRepository.delete(remove);
-                                }
-
-                                newPayment.setPercent(sumOfPercent);
-                                newPayment.setCredit(credit);
-                                newPayment.setRepaymentCredit(paymentOfUser.subtract(sumOfPercent));
-
-                                payments.add(newPayment);
-                                creditRepository.save(credit); // сохраняем кредит вместе с листом payment
-
-                                return AckDto.makeDefault(true);
+                            if (paymentOfUser.compareTo(nextPayment.getPercent()) <= 0) {
+                                newPayment.setPercent(paymentOfUser);
+                                newPayment.setRepaymentCredit(BigDecimal.ZERO);
                             } else {
-
-                                // поменяем данные текущего платежа
-                                newPayment.setAfterPayment(newPayment.getBeforePayment().subtract(paymentOfUser));
-                                PaymentEntity nextPayment = payments.get(i + 1);
-
-                                if (paymentOfUser.compareTo(nextPayment.getPercent()) <= 0) {
-                                    newPayment.setPercent(paymentOfUser);
-                                    newPayment.setRepaymentCredit(BigDecimal.ZERO);
+                                if (paymentOfUser.compareTo(nextPayment.getRepaymentCredit()) <= 0) {
+                                    newPayment.setPercent(BigDecimal.ZERO);
+                                    newPayment.setRepaymentCredit(paymentOfUser);
                                 } else {
-                                    if (paymentOfUser.compareTo(nextPayment.getRepaymentCredit()) <= 0) {
-                                        newPayment.setPercent(BigDecimal.ZERO);
-                                        newPayment.setRepaymentCredit(paymentOfUser);
-                                    } else {
-                                        newPayment.setPercent(nextPayment.getPercent());
-                                        newPayment.setRepaymentCredit(paymentOfUser.subtract(nextPayment.getPercent()));
-                                    }
+                                    newPayment.setPercent(nextPayment.getPercent());
+                                    newPayment.setRepaymentCredit(paymentOfUser.subtract(nextPayment.getPercent()));
                                 }
-
-                                // теперь нужно пересчитать все остальные платежи
-
-                                // создаём список новых платежей
-                                List<PaymentEntity> newPayments;
-                                // узнаём тип кредита
-                                TypeOfCredit typeOfCredit = credit.getTypeOfCredit();
-
-
-                                // здесь вычисляем какой будет сумма долга после нового платежа
-                                BigDecimal currentCreditAmount = previousPayment.getCreditAmount();
-                                currentCreditAmount = currentCreditAmount.add(currentCreditAmount.multiply(percentRate));
-                                currentCreditAmount = currentCreditAmount.subtract(paymentOfUser);
-                                newPayment.setCreditAmount(currentCreditAmount);
-
-                                // аннуитет
-                                if (typeOfCredit == TypeOfCredit.ANNUITY) {
-                                    BigDecimal paymentForNewPlan = newPayment.getAfterPayment().divide(BigDecimal.valueOf(payments.size() - i - 1), 38, RoundingMode.HALF_EVEN);
-
-                                    newPayments = createListOfAnnuityCredit(payments.get(i).getPaymentDate(), currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), payments.size() - i - 1, credit, true, newPayment.getAfterPayment());
-                                }
-
-                                // дифференцированный
-                                else {
-                                    newPayments = createListOfDifferentiatedCredit(payments.get(i).getPaymentDate(), currentCreditAmount, credit.getPercentRate(), payments.size() - i - 1, credit, true, newPayment.getAfterPayment());
-                                }
-
-                                int indexOfOldPayment = i + 1;
-                                // теперь нужно сохранить все эти платежи
-                                for (int j = 0; j < newPayments.size(); j++) {
-                                    PaymentEntity paymentToChange = payments.get(indexOfOldPayment); // платёж, который нужно поменять
-                                    indexOfOldPayment++;
-                                    PaymentEntity paymentChanging = newPayments.get(j); // платёж, у которого есть данные, чтобы изменить платёж по графику (выше)
-                                    paymentToChange.setBeforePayment(paymentChanging.getBeforePayment());
-                                    paymentToChange.setAfterPayment(paymentChanging.getAfterPayment());
-                                    paymentToChange.setPercent(paymentChanging.getPercent());
-                                    paymentToChange.setPaymentAmount(paymentChanging.getPaymentAmount());
-                                    paymentToChange.setRepaymentCredit(paymentChanging.getRepaymentCredit());
-                                    paymentToChange.setPaymentNumber(count);
-                                    count++;
-                                }
-
-                                payments.add(i + 1, newPayment);
-
-                                creditRepository.save(credit);
-
-                                return AckDto.makeDefault(true);
-
                             }
 
+                            // теперь нужно пересчитать все остальные платежи
+
+                            // создаём список новых платежей
+                            List<PaymentEntity> newPayments;
+                            // узнаём тип кредита
+                            TypeOfCredit typeOfCredit = credit.getTypeOfCredit();
+
+
+                            // здесь вычисляем какой будет сумма долга после нового платежа
+                            BigDecimal currentCreditAmount = previousPayment.getCreditAmount();
+                            currentCreditAmount = currentCreditAmount.add(currentCreditAmount.multiply(percentRate));
+                            currentCreditAmount = currentCreditAmount.subtract(paymentOfUser);
+                            newPayment.setCreditAmount(currentCreditAmount);
+
+                            // аннуитет
+                            if (typeOfCredit == TypeOfCredit.ANNUITY) {
+                                BigDecimal paymentForNewPlan = newPayment.getAfterPayment().divide(BigDecimal.valueOf(payments.size() - i - 1), 38, RoundingMode.HALF_EVEN);
+
+                                newPayments = createListOfAnnuityCredit(payments.get(i).getPaymentDate(), currentCreditAmount, paymentForNewPlan, credit.getPercentRate(), payments.size() - i - 1, credit, true, newPayment.getAfterPayment());
+                            }
+
+                            // дифференцированный
+                            else {
+                                newPayments = createListOfDifferentiatedCredit(payments.get(i).getPaymentDate(), currentCreditAmount, credit.getPercentRate(), payments.size() - i - 1, credit, true, newPayment.getAfterPayment());
+                            }
+
+                            int indexOfOldPayment = i + 1;
+                            // теперь нужно сохранить все эти платежи
+                            for (int j = 0; j < newPayments.size(); j++) {
+                                PaymentEntity paymentToChange = payments.get(indexOfOldPayment); // платёж, который нужно поменять
+                                indexOfOldPayment++;
+                                PaymentEntity paymentChanging = newPayments.get(j); // платёж, у которого есть данные, чтобы изменить платёж по графику (выше)
+                                paymentToChange.setBeforePayment(paymentChanging.getBeforePayment());
+                                paymentToChange.setAfterPayment(paymentChanging.getAfterPayment());
+                                paymentToChange.setPercent(paymentChanging.getPercent());
+                                paymentToChange.setPaymentAmount(paymentChanging.getPaymentAmount());
+                                paymentToChange.setRepaymentCredit(paymentChanging.getRepaymentCredit());
+                                paymentToChange.setPaymentNumber(count);
+                                count++;
+                            }
+
+                            payments.add(i + 1, newPayment);
+
+                            creditRepository.save(credit);
+
+                            return AckDto.makeDefault(true);
 
                         }
+
 
                     }
 
                 }
+
+
             }
 
 
