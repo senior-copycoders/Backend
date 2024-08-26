@@ -897,18 +897,11 @@ public class PaymentService {
                             return AckDto.makeDefault(true);
 
                         }
-
-
                     }
 
                 }
-
-
             }
-
-
         }
-
         throw new BadRequestException("The date is beyond the payment period.");
 
     }
