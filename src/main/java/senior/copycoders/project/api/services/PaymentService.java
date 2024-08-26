@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -946,5 +945,59 @@ public class PaymentService {
 
 
         return payment;
+    }
+
+
+    /**
+     * Метод для расчёта налогового вычета
+     *
+     * @param creditAmount   сумма кредита
+     * @param percentRate    годовая процентная ставка (именно в процентах, а не в долях, то есть 10, а не 0.1)
+     * @param creditPeriod   срок кредитования в месяцах
+     * @param typeOfCredit   тип кредита (либо аннуитет, либо дифференцированный)
+     * @param initialPayment начальный платёж
+     * @param payment        ежемесячный платёж (для аннуитета)
+     */
+    public BigDecimal calculateTaxDeduction(BigDecimal initialPayment, BigDecimal creditAmount, BigDecimal percentRate, Integer creditPeriod, TypeOfCredit typeOfCredit, BigDecimal payment) {
+
+
+        // Умножьте сумму уплаченных процентов за год на 13% (ставка НДФЛ)
+        // не более 650_000
+
+        BigDecimal sumOfPercent = BigDecimal.ZERO;
+
+        creditAmount = creditAmount.subtract(initialPayment);
+
+        BigDecimal decrease = creditAmount.divide(BigDecimal.valueOf(creditPeriod), 4, RoundingMode.HALF_EVEN);
+
+        // r = r / 100;
+        percentRate = percentRate.divide(BigDecimal.valueOf(100), 38, RoundingMode.HALF_EVEN);
+
+        // r = r / 12;
+        percentRate = percentRate.divide(BigDecimal.valueOf(12), 38, RoundingMode.HALF_EVEN);
+
+        for (int i = 1; i <= 12; i++) {
+            BigDecimal currentPercent = creditAmount.multiply(percentRate);
+
+            sumOfPercent = sumOfPercent.add(currentPercent);
+
+            creditAmount = creditAmount.add(currentPercent);
+
+            // сделаем платёж
+            if (typeOfCredit == TypeOfCredit.ANNUITY) {
+                creditAmount = creditAmount.subtract(payment);
+            } else {
+                creditAmount = creditAmount.subtract(currentPercent.add(decrease));
+            }
+
+        }
+
+        // надо умножить выплаченные проценты на 13%
+
+
+        sumOfPercent = sumOfPercent.multiply(BigDecimal.valueOf(0.13)).setScale(2, RoundingMode.HALF_EVEN);
+
+
+        return sumOfPercent.compareTo(BigDecimal.valueOf(650_000)) > 0 ? BigDecimal.valueOf(650_000) : sumOfPercent;
     }
 }

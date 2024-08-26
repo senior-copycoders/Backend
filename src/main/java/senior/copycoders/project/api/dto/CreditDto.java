@@ -45,6 +45,7 @@ public class CreditDto {
 
     @JsonProperty("type_of_credit")
     @Schema(description = "тип кредита (либо аннуитет, либо дифференцированный")
+    @NonNull
     TypeOfCredit typeOfCredit;
 
 
