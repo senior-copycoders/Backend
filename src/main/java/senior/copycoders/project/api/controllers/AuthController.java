@@ -1,45 +1,44 @@
 package senior.copycoders.project.api.controllers;
 
 
-import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import senior.copycoders.project.api.dto.*;
+import senior.copycoders.project.api.services.AuthenticationService;
 import senior.copycoders.project.api.services.UserService;
-import senior.copycoders.project.store.entities.PersonEntity;
 
-import java.util.Objects;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor
+@Tag(name = "Аутентификация")
 public class AuthController {
+    private final AuthenticationService authenticationService;
 
-    private UserService service;
-
-    public AuthController(UserService service) {
-        this.service = service;
+    @Operation(summary = "Регистрация пользователя")
+    @PostMapping("/sign-up")
+    public JwtAuthenticationResponse signUp(@RequestBody @Valid SignUpRequest request) {
+        return authenticationService.signUp(request);
     }
 
-    @PostMapping(path = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
-    public @ResponseBody PersonEntity getAuthUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) {
-            return null;
-        }
-
-
-        Object principal = auth.getPrincipal();
-        User user = (principal instanceof User) ? (User) principal : null;
-
-        if (user == null) {
-            return null;
-        } else {
-            return this.service.getByUsername(user.getUsername()).orElse(null);
-        }
+    @Operation(summary = "Авторизация пользователя")
+    @PostMapping("/sign-in")
+    public JwtAuthenticationResponse signIn(@RequestBody @Valid SignInRequest request) {
+        return authenticationService.signIn(request);
     }
-
 }
+

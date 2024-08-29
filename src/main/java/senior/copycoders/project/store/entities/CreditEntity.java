@@ -44,7 +44,7 @@ public class CreditEntity {
     TypeOfCredit typeOfCredit;
 
     @ManyToOne
-    PersonEntity person;
+    User person;
 
 
     @Builder.Default

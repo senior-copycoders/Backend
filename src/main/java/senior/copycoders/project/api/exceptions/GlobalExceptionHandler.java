@@ -1,42 +1,27 @@
 package senior.copycoders.project.api.exceptions;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.Getter;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.session.SessionAuthenticationException;
-import org.springframework.security.web.csrf.InvalidCsrfTokenException;
-import org.springframework.security.web.csrf.MissingCsrfTokenException;
-import org.springframework.security.web.util.UrlUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import senior.copycoders.project.store.repositories.JwtTokenRepository;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
-@RestControllerAdvice
-public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+@ControllerAdvice
+@Controller
+public class GlobalExceptionHandler {
 
-    private JwtTokenRepository tokenRepository;
+    @ExceptionHandler(Exception.class)
+    public ErrorDto handleException(Exception ex) {
+        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR; // По умолчанию
+        String errorDescription = ex.getMessage();
 
-    public GlobalExceptionHandler(JwtTokenRepository tokenRepository) {
-        this.tokenRepository = tokenRepository;
-    }
-
-    @ExceptionHandler({AuthenticationException.class, MissingCsrfTokenException.class, InvalidCsrfTokenException.class, SessionAuthenticationException.class})
-    public ErrorInfo handleAuthenticationException(RuntimeException ex, HttpServletRequest request, HttpServletResponse response){
-        this.tokenRepository.clearToken(response);
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        return new ErrorInfo(UrlUtils.buildFullRequestUrl(request), "error.authorization");
-    }
-
-    @Getter
-    public class ErrorInfo {
-        private final String url;
-        private final String info;
-
-        ErrorInfo(String url, String info) {
-            this.url = url;
-            this.info = info;
+        // Проверяем, есть ли у исключения аннотация @ResponseStatus
+        ResponseStatus responseStatus = ex.getClass().getAnnotation(ResponseStatus.class);
+        if (responseStatus != null) {
+            status = responseStatus.value();
         }
+
+        return new ErrorDto(String.valueOf(status.value()), errorDescription);
+
     }
 }

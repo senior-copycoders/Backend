@@ -1,42 +1,91 @@
 package senior.copycoders.project.api.services;
 
 
-import jakarta.transaction.Transactional;
-import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import senior.copycoders.project.store.entities.PersonEntity;
-import senior.copycoders.project.store.repositories.PersonRepository;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import senior.copycoders.project.store.entities.User;
+import senior.copycoders.project.store.enums.Role;
+import senior.copycoders.project.store.repositories.UserRepository;
 
 @Service
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
-@Transactional
-public class UserService implements UserDetailsService {
-    PersonRepository personRepository;
+public class UserService {
+    private final UserRepository repository;
 
-    public List<PersonEntity> getAll() {
-        return personRepository.findAll();
+    /**
+     * Сохранение пользователя
+     *
+     * @return сохраненный пользователь
+     */
+    public User save(User user) {
+        return repository.save(user);
     }
 
-    public Optional<PersonEntity> getByUsername(String username) {
-        return personRepository.findByUsername(username);
-    }
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<PersonEntity> person = getByUsername(username);
-        if (!person.isPresent()) {
-            throw new UsernameNotFoundException(String.format("User %s is not found", username));
+    /**
+     * Создание пользователя
+     *
+     * @return созданный пользователь
+     */
+    public User create(User user) {
+        if (repository.existsByUsername(user.getUsername())) {
+            // Заменить на свои исключения
+            throw new RuntimeException("Пользователь с таким именем уже существует");
         }
-        return new org.springframework.security.core.userdetails.User(person.get().getUsername(), person.get().getPassword(), true, true, true, true, new HashSet<>());
+
+        if (repository.existsByEmail(user.getEmail())) {
+            throw new RuntimeException("Пользователь с таким email уже существует");
+        }
+
+        return save(user);
+    }
+
+    /**
+     * Получение пользователя по имени пользователя
+     *
+     * @return пользователь
+     */
+    public User getByUsername(String username) {
+        return repository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+    }
+
+    /**
+     * Получение пользователя по имени пользователя
+     * <p>
+     * Нужен для Spring Security
+     *
+     * @return пользователь
+     */
+    public UserDetailsService userDetailsService() {
+        return this::getByUsername;
+    }
+
+    /**
+     * Получение текущего пользователя
+     *
+     * @return текущий пользователь
+     */
+    public User getCurrentUser() {
+        // Получение имени пользователя из контекста Spring Security
+        var username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return getByUsername(username);
+    }
+
+
+    /**
+     * Выдача прав администратора текущему пользователю
+     * <p>
+     * Нужен для демонстрации
+     */
+    @Deprecated
+    public void getAdmin() {
+        var user = getCurrentUser();
+        user.setRole(Role.ROLE_ADMIN);
+        save(user);
     }
 }
