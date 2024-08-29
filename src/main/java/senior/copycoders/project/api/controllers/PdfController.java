@@ -30,7 +30,7 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@Tag(name = "Пл", description = "Выгрузка pdf платежей")
+@Tag(name = "PDF", description = "Выгрузка pdf платежей")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
 public class PdfController {
