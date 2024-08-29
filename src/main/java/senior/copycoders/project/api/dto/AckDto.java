@@ -3,7 +3,7 @@ package senior.copycoders.project.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.hibernate.annotations.HQLSelect;
+
 
 @Data
 @Builder
