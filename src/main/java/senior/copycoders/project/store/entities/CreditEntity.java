@@ -3,6 +3,7 @@ package senior.copycoders.project.store.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.FieldDefaults;
 import senior.copycoders.project.store.enums.TypeOfCredit;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class CreditEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,6 +42,9 @@ public class CreditEntity {
 
     @Column(name = "status_of_credit")
     TypeOfCredit typeOfCredit;
+
+    @ManyToOne
+    PersonEntity person;
 
 
     @Builder.Default

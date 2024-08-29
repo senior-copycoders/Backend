@@ -2,6 +2,7 @@ package senior.copycoders.project.store.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.FieldDefaults;
 import senior.copycoders.project.store.enums.StatusOfPaymentOrCredit;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class PaymentEntity implements Comparable<PaymentEntity> {
 
     @Id
