@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import senior.copycoders.project.api.filters.JwtCsrfFilter;
 
 
 @SpringBootApplication
@@ -27,11 +28,9 @@ public class ProjectApplication {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeHttpRequests(urlConfig -> urlConfig
-                        .requestMatchers("/").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .formLogin(formLogin -> formLogin.defaultSuccessUrl("/swagger-ui/index.html"));
+                .anyRequest().authenticated()
+                .and()
+                .addFilterBefore(new JwtCsrfFilter(), UsernamePasswordAuthenticationFilter.class);
 
 
         return http.build();
