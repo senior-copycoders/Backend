@@ -5,13 +5,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 
 
-
 @SpringBootApplication
 public class ProjectApplication {
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 
-		SpringApplication.run(ProjectApplication.class, args);
-	}
+        SpringApplication.run(ProjectApplication.class, args);
+    }
+
+
+
 
 }
