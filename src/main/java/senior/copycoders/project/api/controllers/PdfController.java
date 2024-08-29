@@ -42,7 +42,10 @@ public class PdfController {
             summary = "Скачивание платежей в pdf формате"
     )
     public ResponseEntity<ByteArrayResource> downloadPdf(@PathVariable(name = "credit_id") Long creditId) throws IOException {
-
         return pdfService.generatePdfOfPayments(creditId);
     }
+
+
+
+
 }
