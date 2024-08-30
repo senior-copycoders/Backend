@@ -22,7 +22,6 @@ public class PaymentDto implements Comparable<PaymentDto> {
     @Schema(description = "номер платежа")
     Integer paymentNumber;
 
-
     @NonNull
     @JsonProperty("payment_date")
     @Schema(description = "дата платежа")

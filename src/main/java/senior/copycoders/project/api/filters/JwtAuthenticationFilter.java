@@ -25,8 +25,10 @@ import org.springframework.stereotype.Component;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
+
 import senior.copycoders.project.api.services.JwtService;
 import senior.copycoders.project.api.services.UserService;
+import org.springframework.security.core.AuthenticationException;
 
 
 import java.io.IOException;
@@ -34,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 
 @Component
@@ -49,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+    ) throws ServletException, IOException{
 
         // Получаем токен из заголовка
         var authHeader = request.getHeader(HEADER_NAME);

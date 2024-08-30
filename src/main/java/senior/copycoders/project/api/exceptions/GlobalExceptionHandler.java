@@ -8,6 +8,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.client.HttpClientErrorException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -28,4 +29,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorDto, HttpStatus.BAD_REQUEST);
     }
 
+
+    @ExceptionHandler(HttpClientErrorException.Forbidden.class)
+    public ResponseEntity<ErrorDto> handleUnAuthorizedException(HttpClientErrorException.Forbidden ex) {
+        logger.error("UnAuthorizedException: {}", ex.getMessage());
+        ErrorDto errorDto = new ErrorDto(String.valueOf(HttpStatus.UNAUTHORIZED.value()), "Missing or invalid token");
+        return new ResponseEntity<>(errorDto, HttpStatus.UNAUTHORIZED);
+    }
 }

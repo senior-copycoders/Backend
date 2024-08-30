@@ -3,6 +3,11 @@ package senior.copycoders.project.api.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
@@ -11,8 +16,8 @@ import lombok.experimental.FieldDefaults;
 
 import org.springframework.web.bind.annotation.*;
 import senior.copycoders.project.api.dto.*;
+import senior.copycoders.project.api.exceptions.ErrorDto;
 import senior.copycoders.project.api.services.CreditService;
-
 
 
 import java.math.BigDecimal;
@@ -26,11 +31,20 @@ import java.util.List;
 public class CreditController {
     CreditService creditService;
 
-    @SecurityRequirement(name = "Bearer Authentication")
     @PostMapping("/api/credit")
     @Operation(
             summary = "Инициализация кредита и всех платежей к нему"
     )
+    @SecurityRequirement(name = "Bearer Authentication")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful response.",
+                    content = @Content(schema = @Schema(implementation = PaymentWithCreditDto.class))),
+
+            @ApiResponse(responseCode = "400", description = "Invalid information about credit.",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "403", description = "Missing or invalid token.")
+
+    })
     public PaymentWithCreditDto createCredit(@RequestBody CreditRequest creditRequest) {
 
         // Получаем из creditService объект нужного класса
@@ -42,6 +56,11 @@ public class CreditController {
     @Operation(
             summary = "Получение списка всех кредитов"
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful response.",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = CreditDto.class)))),
+            @ApiResponse(responseCode = "403", description = "Missing or invalid token.")
+    })
     public List<CreditDto> getAllCredit() {
 
         // получаем список всех кредитов в БД
@@ -53,6 +72,15 @@ public class CreditController {
     @Operation(
             summary = "Удаление кредита по id (вместе с его платежами)"
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful response.",
+                    content = @Content(schema = @Schema(implementation = AckDto.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid information about credit.",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "403", description = "Missing or invalid token."),
+            @ApiResponse(responseCode = "404", description = "Credit with {credit_id} not found.",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class)))
+    })
     public AckDto deleteCreditById(@PathVariable(name = "credit_id") @Parameter() Long creditId) {
         creditService.deleteCreditAndPayments(creditId);
 
@@ -65,20 +93,13 @@ public class CreditController {
     @Operation(
             summary = "Получение параметров для кредита (макс/мин процентная ставка и т.д.)"
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful response.",
+                    content = @Content(schema = @Schema(implementation = CreditConstantsDto.class))),
+            @ApiResponse(responseCode = "403", description = "Missing or invalid token.")
+    })
     public CreditConstantsDto getCreditConstants() {
         return new CreditConstantsDto();
     }
-
-
-//    @PatchMapping("/api/credit/{credit_id}")
-//    @Operation(
-//            summary = "Изменение каких-то параметров кредита по id и перерасчёт всех платежей. Введите id кредита и параметры, которые хотите изменить"
-//    )
-//    public PaymentWithCreditDto changeCredit(@PathVariable(name = "credit_id") @Parameter(description = "id кредита") Long creditId, @RequestParam(name = "initial_payment", required = false) @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой, необязательное поле)") Optional<Double> optionalInitialPayment, @RequestParam(name = "credit_amount", required = false) @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой, необязательное поле)") Optional<Double> optionalCreditAmount, @RequestParam(name = "percent_rate", required = false) @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой, необязательное поле)") Optional<Double> optionalPercentRate, @RequestParam(name = "credit_period", required = false) @Parameter(description = "срок кредитования в месяцах (положительное целое число, необязательное поле)") Optional<Integer> optionalCreditPeriod) {
-//
-//
-//        return creditService.changeCreditAndPayments(creditId, optionalInitialPayment.map(BigDecimal::valueOf), optionalCreditAmount.map(BigDecimal::valueOf), optionalPercentRate.map(BigDecimal::valueOf), optionalCreditPeriod);
-//
-//    }
 
 }

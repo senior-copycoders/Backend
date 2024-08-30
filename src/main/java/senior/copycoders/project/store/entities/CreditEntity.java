@@ -4,6 +4,7 @@ package senior.copycoders.project.store.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import senior.copycoders.project.store.enums.StatusOfPaymentOrCredit;
 import senior.copycoders.project.store.enums.TypeOfCredit;
 
 import java.math.BigDecimal;
@@ -40,11 +41,14 @@ public class CreditEntity {
     @Column(name = "payment")
     BigDecimal payment;
 
-    @Column(name = "status_of_credit")
+    @Column(name = "type_of_credit")
     TypeOfCredit typeOfCredit;
 
     @ManyToOne
     User person;
+
+    @Column(name = "status")
+    StatusOfPaymentOrCredit status;
 
 
     @Builder.Default

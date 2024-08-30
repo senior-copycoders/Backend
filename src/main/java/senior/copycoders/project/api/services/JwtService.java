@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import senior.copycoders.project.store.entities.User;
+import senior.copycoders.project.store.enums.Role;
 
 import java.security.Key;
 import java.util.Date;
@@ -42,7 +43,7 @@ public class JwtService {
         if (userDetails instanceof User customUserDetails) {
             claims.put("id", customUserDetails.getId());
             claims.put("email", customUserDetails.getEmail());
-            claims.put("role", customUserDetails.getRole());
+            claims.put("role", Role.ROLE_USER);
         }
         return generateToken(claims, userDetails);
     }

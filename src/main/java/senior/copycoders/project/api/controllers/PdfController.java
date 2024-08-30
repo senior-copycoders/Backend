@@ -8,6 +8,10 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.properties.UnitValue;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
@@ -22,6 +26,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import senior.copycoders.project.api.controllers.helpers.ControllerHelper;
+import senior.copycoders.project.api.dto.InitialDataOfCreditDto;
+import senior.copycoders.project.api.exceptions.ErrorDto;
 import senior.copycoders.project.api.services.PdfService;
 import senior.copycoders.project.store.entities.CreditEntity;
 import senior.copycoders.project.store.entities.PaymentEntity;
@@ -43,6 +49,12 @@ public class PdfController {
     @Operation(
             summary = "Скачивание платежей в pdf формате"
     )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successful response."),
+            @ApiResponse(responseCode = "404", description = "Credit with {credit_id} not found.",
+                    content = @Content(schema = @Schema(implementation = ErrorDto.class))),
+            @ApiResponse(responseCode = "403", description = "Missing or invalid token.")
+    })
     public ResponseEntity<ByteArrayResource> downloadPdf(@PathVariable(name = "credit_id") Long creditId) throws IOException {
         return pdfService.generatePdfOfPayments(creditId);
     }
