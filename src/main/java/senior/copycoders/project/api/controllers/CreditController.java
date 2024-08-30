@@ -3,6 +3,7 @@ package senior.copycoders.project.api.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,7 @@ public class CreditController {
         return creditService.calculateSchedule(dateOfFirstPayment, BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod, type);
     }
 
-
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/api/credit")
     @Operation(
             summary = "Получение списка всех кредитов"
