@@ -8,6 +8,7 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.properties.UnitValue;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class PdfController {
     ControllerHelper controllerHelper;
     PdfService pdfService;
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/api/download-pdf/{credit_id}")
     @Operation(
             summary = "Скачивание платежей в pdf формате"

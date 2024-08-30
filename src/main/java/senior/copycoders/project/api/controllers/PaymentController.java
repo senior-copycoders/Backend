@@ -3,6 +3,7 @@ package senior.copycoders.project.api.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ public class PaymentController {
     PaymentService paymentService;
 
     @GetMapping("/api/credit/{credit_id}/schedule")
-    @PreAuthorize("hasAuthority('ROLE_USER')")
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "Получение графика платежей (а также информация про кредит) по id кредита, которого передали"
     )
@@ -38,6 +39,7 @@ public class PaymentController {
     }
 
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @PatchMapping("/api/credit/{credit_id}/make-payment")
     @Operation(
             summary = "Начисления платежа по кредиту"
@@ -47,6 +49,7 @@ public class PaymentController {
     }
 
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/api/calculate-payment")
     @Operation(
             summary = "Узнать платёж по кредиту (для дифференцированного - первый платёж)"

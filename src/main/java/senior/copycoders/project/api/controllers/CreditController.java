@@ -26,6 +26,7 @@ import java.util.List;
 public class CreditController {
     CreditService creditService;
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @PostMapping("/api/credit")
     @Operation(
             summary = "Инициализация кредита и всех платежей к нему"
@@ -47,7 +48,7 @@ public class CreditController {
         return creditService.getAllCredit();
     }
 
-
+    @SecurityRequirement(name = "Bearer Authentication")
     @DeleteMapping("/api/credit/{credit_id}")
     @Operation(
             summary = "Удаление кредита по id (вместе с его платежами)"
@@ -59,6 +60,7 @@ public class CreditController {
     }
 
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/api/credit/constants")
     @Operation(
             summary = "Получение параметров для кредита (макс/мин процентная ставка и т.д.)"
