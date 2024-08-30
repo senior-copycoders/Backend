@@ -8,10 +8,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
-import senior.copycoders.project.api.dto.AckDto;
-import senior.copycoders.project.api.dto.CreditConstantsDto;
-import senior.copycoders.project.api.dto.CreditDto;
-import senior.copycoders.project.api.dto.PaymentWithCreditDto;
+import senior.copycoders.project.api.dto.*;
 import senior.copycoders.project.api.services.CreditService;
 import senior.copycoders.project.store.enums.CreditConstants;
 
@@ -31,10 +28,10 @@ public class CreditController {
     @Operation(
             summary = "Инициализация кредита и всех платежей к нему"
     )
-    public PaymentWithCreditDto createCredit(@RequestParam(name = "dateOfFirstPayment") @Parameter(description = "дата первого платежа (формат yyyy-MM-dd)") String dateOfFirstPayment, @RequestParam(name = "initial_payment") @Parameter(description = "начальный платёж (неотрицательное вещественное число, до двух знаков после запятой)") Double initialPayment, @RequestParam(name = "credit_amount") @Parameter(description = "сумма кредита (положительное вещественное число, до двух знаков после запятой, min = 200_000, max = 30_000_000)") Double creditAmount, @RequestParam(name = "percent_rate") @Parameter(description = "годовая процентная ставка (положительное вещественное число, до двух знаков после запятой, min = 0% (не включительно), max = 18%)") Double percentRate, @RequestParam(name = "credit_period") @Parameter(description = "срок кредитования в месяцах (положительное целое число, min = 12 месяцев(1 год), max = 360(30 лет))") Integer creditPeriod, @RequestParam(name = "typeOfCredit") @Parameter(description = "тип кредита, false - аннуитет, true - дифференцированный") Boolean type) {
+    public PaymentWithCreditDto createCredit(@RequestBody CreditRequest creditRequest) {
 
         // Получаем из creditService объект нужного класса
-        return creditService.calculateSchedule(dateOfFirstPayment, BigDecimal.valueOf(initialPayment), BigDecimal.valueOf(creditAmount), BigDecimal.valueOf(percentRate), creditPeriod, type);
+        return creditService.calculateSchedule(creditRequest.getDateOfFirstPayment(), BigDecimal.valueOf(creditRequest.getInitialPayment()), BigDecimal.valueOf(creditRequest.getCreditAmount()), BigDecimal.valueOf(creditRequest.getPercentRate()), creditRequest.getCreditPeriod(), creditRequest.getTypeOfCredit());
     }
 
 
