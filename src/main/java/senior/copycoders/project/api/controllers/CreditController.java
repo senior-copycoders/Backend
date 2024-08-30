@@ -3,14 +3,16 @@ package senior.copycoders.project.api.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+
 import org.springframework.web.bind.annotation.*;
 import senior.copycoders.project.api.dto.*;
 import senior.copycoders.project.api.services.CreditService;
-import senior.copycoders.project.store.enums.CreditConstants;
+
 
 
 import java.math.BigDecimal;
@@ -34,7 +36,7 @@ public class CreditController {
         return creditService.calculateSchedule(creditRequest.getDateOfFirstPayment(), BigDecimal.valueOf(creditRequest.getInitialPayment()), BigDecimal.valueOf(creditRequest.getCreditAmount()), BigDecimal.valueOf(creditRequest.getPercentRate()), creditRequest.getCreditPeriod(), creditRequest.getTypeOfCredit());
     }
 
-
+    @SecurityRequirement(name = "Bearer Authentication")
     @GetMapping("/api/credit")
     @Operation(
             summary = "Получение списка всех кредитов"
