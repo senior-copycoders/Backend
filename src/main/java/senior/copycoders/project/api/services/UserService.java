@@ -8,7 +8,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import senior.copycoders.project.api.exceptions.BadRequestException;
 import senior.copycoders.project.store.entities.User;
-import senior.copycoders.project.store.enums.Role;
 import senior.copycoders.project.store.repositories.UserRepository;
 
 @Service

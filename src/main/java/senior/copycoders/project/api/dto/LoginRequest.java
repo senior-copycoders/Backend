@@ -12,5 +12,4 @@ public class LoginRequest {
     String username;
     String password;
 
-    // Геттеры и сеттеры
 }

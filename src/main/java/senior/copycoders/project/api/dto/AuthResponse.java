@@ -12,5 +12,4 @@ import lombok.experimental.FieldDefaults;
 public class AuthResponse {
     private String token;
 
-    // Геттеры и сеттеры
 }

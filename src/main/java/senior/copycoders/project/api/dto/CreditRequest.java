@@ -39,5 +39,4 @@ public class CreditRequest {
     @JsonProperty("type_of_credit")
     private Boolean typeOfCredit;
 
-    // Геттеры и сеттеры
 }

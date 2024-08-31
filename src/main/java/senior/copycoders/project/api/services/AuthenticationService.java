@@ -9,7 +9,7 @@ import senior.copycoders.project.api.dto.JwtAuthenticationResponse;
 import senior.copycoders.project.api.dto.SignInRequest;
 import senior.copycoders.project.api.dto.SignUpRequest;
 import senior.copycoders.project.store.entities.User;
-import senior.copycoders.project.store.enums.Role;
+
 
 @Service
 @RequiredArgsConstructor

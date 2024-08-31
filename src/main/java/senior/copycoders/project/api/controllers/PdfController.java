@@ -41,7 +41,6 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
 public class PdfController {
-    ControllerHelper controllerHelper;
     PdfService pdfService;
 
     @SecurityRequirement(name = "Bearer Authentication")
