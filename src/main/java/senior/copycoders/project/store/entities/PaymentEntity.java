@@ -38,7 +38,7 @@ public class PaymentEntity implements Comparable<PaymentEntity> {
     @Column(name = "repayment_credit")
     BigDecimal repaymentCredit;
 
-    @Column(name = "credit_after-payment")
+    @Column(name = "credit_after_payment")
     BigDecimal afterPayment;
 
     @ManyToOne
@@ -47,7 +47,7 @@ public class PaymentEntity implements Comparable<PaymentEntity> {
     @Column(name = "status")
     StatusOfPaymentOrCredit status;
 
-    @Column(name = "credit_before-payment")
+    @Column(name = "credit_before_payment")
     BigDecimal beforePayment;
 
     @Column(name = "credit_amount")

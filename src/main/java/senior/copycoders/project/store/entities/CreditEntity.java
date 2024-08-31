@@ -47,9 +47,6 @@ public class CreditEntity {
     @ManyToOne
     User person;
 
-    @Column(name = "status")
-    StatusOfPaymentOrCredit status;
-
 
     @Builder.Default
     @OneToMany(cascade = CascadeType.ALL)

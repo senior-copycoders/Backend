@@ -49,11 +49,6 @@ public class CreditDto {
     @Schema(description = "тип кредита (либо аннуитет, либо дифференцированный)")
     TypeOfCredit typeOfCredit;
 
-    @NonNull
-    @JsonProperty("status_of_credit")
-    @Schema(description = "статус кредита (выплачен, или находится в процессе)")
-    StatusOfPaymentOrCredit status;
-
 
 }
 
